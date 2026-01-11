@@ -3,6 +3,11 @@
   "version": "0.0.2",
   "description": "Storybook a11y reporter with APCA support for CI/CLI",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/NMIT-WR/storybook-addons",
+    "directory": "packages/a11y-reporter"
+  },
   "bin": {
     "storybook-a11y-report": "dist/cli.js"
   },
