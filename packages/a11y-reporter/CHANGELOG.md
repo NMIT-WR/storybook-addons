@@ -1,3 +1,10 @@
+## [0.0.3](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.2...storybook-a11y-reporter-v0.0.3) (2026-01-11)
+
+
+### Bug Fixes
+
+* **release:** add repository metadata for provenance ([644ad2c](https://github.com/NMIT-WR/storybook-addons/commit/644ad2cf0ebb8a8639bbbb8e5022badcc2797995))
+
 ## [0.0.2](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.1...storybook-a11y-reporter-v0.0.2) (2026-01-11)
 
 
