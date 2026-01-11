@@ -1,0 +1,37 @@
+{
+  "name": "@techsio/storybook-a11y-reporter",
+  "version": "0.1.0",
+  "description": "Storybook a11y reporter with APCA support for CI/CLI",
+  "type": "module",
+  "bin": {
+    "storybook-a11y-report": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist/**/*",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "rslib build",
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "fs-extra": "^11.3.2"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@storybook/test-runner": "^0.24.2"
+  },
+  "peerDependencies": {
+    "@storybook/test-runner": ">=0.19.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
