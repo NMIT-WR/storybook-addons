@@ -40,10 +40,23 @@ jobs:
       - name: Build packages
         run: pnpm build
 
-      - name: Create release PR or publish
-        uses: changesets/action@v1
-        with:
-          publish: pnpm release
+      - name: Release a11y reporter
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           NPM_CONFIG_PROVENANCE: true
+        run: pnpm -C packages/a11y-reporter semantic-release
+
+      - name: Sync after reporter release
+        run: |
+          git fetch origin main
+          git reset --hard origin/main
+
+      - name: Release addon a11y APCA
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+        run: pnpm -C packages/addon-a11y-apca semantic-release

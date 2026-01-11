@@ -6,12 +6,9 @@
   "scripts": {
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test",
-    "changeset": "changeset",
-    "release": "changeset publish"
+    "test": "pnpm -r test"
   },
   "devDependencies": {
-    "@changesets/cli": "^2.29.2",
     "@rslib/core": "^0.19.1",
     "@types/node": "^22.0.0",
     "typescript": "^5.9.3"
