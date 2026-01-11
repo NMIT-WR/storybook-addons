@@ -4,7 +4,7 @@
   "description": "Storybook a11y reporter with APCA support for CI/CLI",
   "type": "module",
   "bin": {
-    "storybook-a11y-report": "./dist/cli.js"
+    "storybook-a11y-report": "dist/cli.js"
   },
   "exports": {
     ".": {
