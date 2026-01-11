@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { Select } from 'storybook/internal/components';
+import { Button } from 'storybook/internal/components';
 
 import { AccessibilityIcon } from '@storybook/icons';
 
@@ -35,28 +35,67 @@ const ColorIcon = styled.span<{ $filter: string }>(
   })
 );
 
+const SelectRow = styled.div(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '6px 10px',
+  border: `1px solid ${theme.appBorderColor}`,
+  borderRadius: theme.appBorderRadius,
+  background: theme.background.content,
+}));
+
+const SelectInput = styled.select(({ theme }) => ({
+  flex: 1,
+  minWidth: 0,
+  padding: '4px 6px',
+  border: `1px solid ${theme.appBorderColor}`,
+  borderRadius: theme.appBorderRadius,
+  background: theme.background.app,
+  color: theme.color.defaultText,
+  fontSize: theme.typography.size.s2,
+}));
+
+const ResetButton = styled(Button)({
+  whiteSpace: 'nowrap',
+});
+
 export const VisionSimulator = () => {
   const [globals, updateGlobals] = useGlobals();
   const value = globals[VISION_GLOBAL_KEY];
 
   const options = Object.entries(filters).map(([key, { label, percentage }]) => ({
-    title: label,
-    description: percentage ? `${percentage}% of users` : undefined,
-    icon: <ColorIcon $filter={key} />,
+    label: percentage ? `${label} (${percentage}% of users)` : label,
     value: key,
   }));
 
   return (
     <>
-      <Select
-        resetLabel="Reset color filter"
-        onReset={() => updateGlobals({ [VISION_GLOBAL_KEY]: undefined })}
-        icon={<AccessibilityIcon />}
-        ariaLabel="Vision simulator"
-        defaultOptions={value}
-        options={options}
-        onSelect={(selected) => updateGlobals({ [VISION_GLOBAL_KEY]: selected })}
-      />
+      <SelectRow aria-label="Vision simulator">
+        <AccessibilityIcon />
+        <ColorIcon $filter={String(value || 'none')} />
+        <SelectInput
+          value={value ?? ''}
+          onChange={(event) =>
+            updateGlobals({ [VISION_GLOBAL_KEY]: event.target.value || undefined })
+          }
+        >
+          <option value="">No filter</option>
+          {options.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </SelectInput>
+        <ResetButton
+          variant="ghost"
+          padding="small"
+          onClick={() => updateGlobals({ [VISION_GLOBAL_KEY]: undefined })}
+          ariaLabel="Reset color filter"
+        >
+          Reset
+        </ResetButton>
+      </SelectRow>
       <Hidden dangerouslySetInnerHTML={{ __html: filterDefs }} />
     </>
   );

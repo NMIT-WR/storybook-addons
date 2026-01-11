@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { Button, TabsView } from 'storybook/internal/components';
+import { Button, Tabs as StorybookTabs } from 'storybook/internal/components';
 
 import { CollapseIcon, ExpandAltIcon, EyeCloseIcon, EyeIcon, SyncIcon } from '@storybook/icons';
 
@@ -34,6 +34,12 @@ interface TabsProps {
   }[];
 }
 
+const TabPanel: React.FC<{
+  id: string;
+  title: React.ReactNode;
+  children: React.ReactNode;
+}> = ({ id, children }) => <div id={id}>{children}</div>;
+
 export const Tabs: React.FC<TabsProps> = ({ tabs }) => {
   const {
     tab,
@@ -50,17 +56,10 @@ export const Tabs: React.FC<TabsProps> = ({ tabs }) => {
 
   return (
     <Container>
-      <TabsView
+      <StorybookTabs
         backgroundColor={theme.background.app}
-        panelProps={{ hasScrollbar: true }}
-        tabs={tabs.map((tab) => ({
-          id: tab.type,
-          title: tab.label,
-          children: tab.panel,
-        }))}
         selected={tab}
-        // Safe to cast key to RuleType because we use RuleTypes as IDs above.
-        onSelectionChange={(key) => setTab(key as RuleType)}
+        actions={{ onSelect: (id: string) => setTab(id as RuleType) }}
         tools={
           <ActionsWrapper>
             <Button
@@ -94,7 +93,13 @@ export const Tabs: React.FC<TabsProps> = ({ tabs }) => {
             </Button>
           </ActionsWrapper>
         }
-      />
+      >
+        {tabs.map((tabItem) => (
+          <TabPanel key={tabItem.type} id={tabItem.type} title={tabItem.label}>
+            {tabItem.panel}
+          </TabPanel>
+        ))}
+      </StorybookTabs>
     </Container>
   );
 };
