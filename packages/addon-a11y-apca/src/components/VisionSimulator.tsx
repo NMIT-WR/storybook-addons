@@ -28,7 +28,7 @@ const ColorIcon = styled.span<{ $filter: string }>(
     width: 14,
   },
   ({ $filter }) => ({
-    filter: filters[$filter as keyof typeof filters].filter || 'none',
+    filter: filters[$filter as keyof typeof filters]?.filter || 'none',
   }),
   ({ theme }) => ({
     boxShadow: `${theme.appBorderColor} 0 0 0 1px inset`,
