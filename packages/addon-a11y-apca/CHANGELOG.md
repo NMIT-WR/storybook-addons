@@ -1,3 +1,10 @@
+## [0.0.11](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.10...storybook-better-a11y-v0.0.11) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** lazy vitest matcher import ([1356c5f](https://github.com/NMIT-WR/storybook-addons/commit/1356c5f36ede29a52387d887cb786b792eea16f3))
+
 ## [0.0.10](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.9...storybook-better-a11y-v0.0.10) (2026-01-12)
 
 
