@@ -1,4 +1,5 @@
 import { global } from '@storybook/global';
+import { converter, parse as parseCssColor } from 'culori';
 import type { Result, NodeResult } from 'axe-core';
 
 const { document } = global;
@@ -10,6 +11,7 @@ const DEFAULT_APCA_OPTIONS: Required<ApcaOptions> = {
 
 const APCA_LC_STEPS = [15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125];
 const APCA_MAX_CONTRAST_LC = 90;
+const toRgb = converter('rgb');
 
 type ApcaConformanceLevel = 'bronze' | 'silver' | 'gold';
 type ApcaUseCase = 'body' | 'fluent' | 'sub-fluent' | 'non-fluent';
@@ -64,11 +66,29 @@ function getEffectiveBackgroundColor(element: Element): string {
 /**
  * Convert RGB/RGBA string to array of numbers
  */
-function parseColor(color: string): [number, number, number] | null {
-  const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-  if (!match) return null;
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.min(1, Math.max(0, value));
+}
 
-  return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
+function parseColor(color: string): [number, number, number] | null {
+  if (!color) return null;
+  const match = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (match) {
+    return [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)];
+  }
+
+  const parsed = parseCssColor(color);
+  if (!parsed) return null;
+  const rgb = toRgb(parsed);
+  if (!rgb) return null;
+  if (rgb.alpha !== undefined && rgb.alpha <= 0) return null;
+
+  return [
+    Math.round(clamp01(rgb.r) * 255),
+    Math.round(clamp01(rgb.g) * 255),
+    Math.round(clamp01(rgb.b) * 255),
+  ];
 }
 
 function normalizeUseCase(value: string | null, fallback: ApcaUseCase): ApcaUseCase {

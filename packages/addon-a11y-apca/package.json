@@ -43,6 +43,7 @@
   },
   "dependencies": {
     "@storybook/global": "^5.0.0",
+    "culori": "^4.0.1",
     "apca-w3": "^0.1.9",
     "axe-core": "^4.2.0"
   },
