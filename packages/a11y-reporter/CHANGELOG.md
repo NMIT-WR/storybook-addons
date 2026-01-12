@@ -1,3 +1,10 @@
+## [0.0.11](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.10...storybook-a11y-reporter-v0.0.11) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** drop radix tabs ([2c3a6ce](https://github.com/NMIT-WR/storybook-addons/commit/2c3a6ceb655e4a20d7379b12129685c411c42dfa))
+
 ## [0.0.10](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.9...storybook-a11y-reporter-v0.0.10) (2026-01-12)
 
 
