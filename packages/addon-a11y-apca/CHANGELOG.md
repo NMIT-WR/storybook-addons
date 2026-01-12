@@ -1,3 +1,11 @@
+## [0.0.3](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.2...storybook-better-a11y-v0.0.3) (2026-01-12)
+
+
+### Bug Fixes
+
+* **a11y-reporter:** preserve results across workers ([c754cf8](https://github.com/NMIT-WR/storybook-addons/commit/c754cf8e758c9676af3db3ad9976d4c3d8f2ed01))
+* **addon-a11y-apca:** honor excluded selectors ([bfd726a](https://github.com/NMIT-WR/storybook-addons/commit/bfd726ac15dc7bd05e1efcc16e23f56cdfce9eba))
+
 ## [0.0.2](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.1...storybook-better-a11y-v0.0.2) (2026-01-11)
 
 
