@@ -1,3 +1,10 @@
+## [0.0.14](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.13...storybook-better-a11y-v0.0.14) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** include body background in APCA ([26f1a41](https://github.com/NMIT-WR/storybook-addons/commit/26f1a41cdf879285675c5ae0cb3c974bb1761eab))
+
 ## [0.0.13](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.12...storybook-better-a11y-v0.0.13) (2026-01-12)
 
 
