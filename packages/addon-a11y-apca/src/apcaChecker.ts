@@ -254,6 +254,9 @@ function getApcaThreshold(
   };
 }
 
+const TEXT_ELEMENT_SELECTOR =
+  'p, span, div, h1, h2, h3, h4, h5, h6, a, button, label, td, th, li, input, textarea';
+
 /**
  * Check if element contains readable text
  */
@@ -261,6 +264,12 @@ function hasReadableText(element: Element): boolean {
   const text = element.textContent?.trim() || '';
   // Ignore elements with no text or very short text (like icons)
   return text.length > 0 && !element.hasAttribute('aria-hidden');
+}
+
+function hasDirectTextNode(element: Element): boolean {
+  return Array.from(element.childNodes).some((node) =>
+    node.nodeType === Node.TEXT_NODE && (node.textContent?.trim()?.length ?? 0) > 0
+  );
 }
 
 /**
@@ -292,9 +301,7 @@ export async function runAPCACheck(
   const root = context instanceof Document ? context.body : context;
 
   // Get all text-containing elements
-  const textElements = root.querySelectorAll(
-    'p, span, div, h1, h2, h3, h4, h5, h6, a, button, label, td, th, li, input, textarea'
-  );
+  const textElements = root.querySelectorAll(TEXT_ELEMENT_SELECTOR);
 
   textElements.forEach((element) => {
     if (excludeSelectors.length > 0) {
@@ -310,6 +317,11 @@ export async function runAPCACheck(
 
     // Skip if not visible or has no text
     if (!isVisible(element) || !hasReadableText(element)) {
+      return;
+    }
+
+    // Avoid reporting container elements when a descendant already represents the text
+    if (!hasDirectTextNode(element) && element.querySelector(TEXT_ELEMENT_SELECTOR)) {
       return;
     }
 
