@@ -1,3 +1,10 @@
+## [0.0.8](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.7...storybook-better-a11y-v0.0.8) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** externalize react runtime ([a6a8333](https://github.com/NMIT-WR/storybook-addons/commit/a6a8333dd0b8d4f8be2b80e8663295515a5f4b67))
+
 ## [0.0.7](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.6...storybook-better-a11y-v0.0.7) (2026-01-12)
 
 
