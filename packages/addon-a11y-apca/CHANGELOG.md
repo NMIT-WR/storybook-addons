@@ -1,3 +1,10 @@
+## [0.0.4](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.3...storybook-better-a11y-v0.0.4) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** guard vision filter default ([c4c93af](https://github.com/NMIT-WR/storybook-addons/commit/c4c93af01b5a6240895bb0fcc2190823bb9c066c))
+
 ## [0.0.3](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.2...storybook-better-a11y-v0.0.3) (2026-01-12)
 
 
