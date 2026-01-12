@@ -260,7 +260,8 @@ function isVisible(element: Element): boolean {
  */
 export async function runAPCACheck(
   context: Element | Document = document,
-  options: ApcaOptions = DEFAULT_APCA_OPTIONS
+  options: ApcaOptions = DEFAULT_APCA_OPTIONS,
+  excludeSelectors: string[] = []
 ): Promise<Result> {
   // Dynamic import of APCA library
   const { APCAcontrast, sRGBtoY, fontLookupAPCA } = await import('apca-w3');
@@ -276,6 +277,17 @@ export async function runAPCACheck(
   );
 
   textElements.forEach((element) => {
+    if (excludeSelectors.length > 0) {
+      const isExcluded = excludeSelectors.some((selector) => {
+        try {
+          return element.closest(selector) !== null;
+        } catch {
+          return false;
+        }
+      });
+      if (isExcluded) return;
+    }
+
     // Skip if not visible or has no text
     if (!isVisible(element) || !hasReadableText(element)) {
       return;

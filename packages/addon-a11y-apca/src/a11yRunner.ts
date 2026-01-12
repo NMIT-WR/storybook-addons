@@ -118,7 +118,13 @@ export const run = async (input: A11yParameters = DEFAULT_PARAMETERS, storyId: s
         } else if (typeof context.include === 'string') {
           contextElement = document.querySelector(context.include) || document;
         }
-        const apcaResult = await runAPCACheck(contextElement, input.apca);
+        const excludeSelectors = Array.isArray(context.exclude)
+          ? (context.exclude as unknown[]).filter((value): value is string => typeof value === 'string')
+          : typeof context.exclude === 'string'
+            ? [context.exclude]
+            : [];
+
+        const apcaResult = await runAPCACheck(contextElement, input.apca, excludeSelectors);
 
         // Merge APCA results with axe results
         if (apcaResult.nodes.length > 0) {
