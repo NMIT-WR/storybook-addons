@@ -1,3 +1,10 @@
+## [0.0.5](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.4...storybook-a11y-reporter-v0.0.5) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** guard vision filter default ([c4c93af](https://github.com/NMIT-WR/storybook-addons/commit/c4c93af01b5a6240895bb0fcc2190823bb9c066c))
+
 ## [0.0.4](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.3...storybook-a11y-reporter-v0.0.4) (2026-01-12)
 
 
