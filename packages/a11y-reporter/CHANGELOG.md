@@ -1,3 +1,10 @@
+## [0.0.9](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.8...storybook-a11y-reporter-v0.0.9) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** externalize react runtime ([a6a8333](https://github.com/NMIT-WR/storybook-addons/commit/a6a8333dd0b8d4f8be2b80e8663295515a5f4b67))
+
 ## [0.0.8](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.7...storybook-a11y-reporter-v0.0.8) (2026-01-12)
 
 
