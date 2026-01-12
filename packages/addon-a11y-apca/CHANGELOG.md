@@ -1,3 +1,10 @@
+## [0.0.5](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.4...storybook-better-a11y-v0.0.5) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** avoid bundling manager react ([140d88f](https://github.com/NMIT-WR/storybook-addons/commit/140d88f7649468fdb4c529a95b208104e6818cb2))
+
 ## [0.0.4](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.3...storybook-better-a11y-v0.0.4) (2026-01-12)
 
 
