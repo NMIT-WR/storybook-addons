@@ -1,10 +1,9 @@
-import React, { Fragment, useCallback, useState } from 'react';
+import React, { Fragment, useCallback, useMemo, useState } from 'react';
 
 import { Button, Link, SyntaxHighlighter } from 'storybook/internal/components';
 
 import { CheckIcon, CopyIcon, LocationIcon } from '@storybook/icons';
 
-import * as Tabs from '@radix-ui/react-tabs';
 import { styled } from 'storybook/theming';
 
 import { getFriendlySummaryForAxeResult } from '../../axeRuleMappingHelper';
@@ -137,8 +136,16 @@ interface DetailsProps {
   handleSelectionChange: (key: string) => void;
 }
 
-export const Details = ({ id, item, type, selection, handleSelectionChange }: DetailsProps) => (
-  <Wrapper id={id}>
+export const Details = ({ id, item, type, selection, handleSelectionChange }: DetailsProps) => {
+  const selectedNode = useMemo(() => {
+    const selectedIndex = item.nodes.findIndex(
+      (_, index) => `${type}.${item.id}.${index + 1}` === selection
+    );
+    return item.nodes[selectedIndex === -1 ? 0 : selectedIndex];
+  }, [item.id, item.nodes, selection, type]);
+
+  return (
+    <Wrapper id={id}>
     <Info>
       <RuleId>{item.id}</RuleId>
       <Description>
@@ -149,44 +156,34 @@ export const Details = ({ id, item, type, selection, handleSelectionChange }: De
       </Description>
     </Info>
 
-    <Tabs.Root
-      defaultValue={selection}
-      orientation="vertical"
-      value={selection}
-      onValueChange={handleSelectionChange}
-      asChild
-    >
-      <Columns>
-        <Tabs.List aria-label={type}>
-          {item.nodes.map((node, index) => {
-            const key = `${type}.${item.id}.${index + 1}`;
-            return (
-              <Fragment key={key}>
-                <Tabs.Trigger value={key} asChild>
-                  <Item ariaLabel={false} variant="ghost" size="medium" id={key}>
-                    {index + 1}. {node.html}
-                  </Item>
-                </Tabs.Trigger>
-                <Tabs.Content value={key} asChild>
-                  <Content side="left">{getContent(node)}</Content>
-                </Tabs.Content>
-              </Fragment>
-            );
-          })}
-        </Tabs.List>
-
+    <Columns>
+      <div aria-label={type}>
         {item.nodes.map((node, index) => {
           const key = `${type}.${item.id}.${index + 1}`;
+          const isActive = selection === key;
           return (
-            <Tabs.Content key={key} value={key} asChild>
-              <Content side="right">{getContent(node)}</Content>
-            </Tabs.Content>
+            <Fragment key={key}>
+              <Item
+                ariaLabel={false}
+                variant="ghost"
+                size="medium"
+                id={key}
+                data-state={isActive ? 'active' : 'inactive'}
+                onClick={() => handleSelectionChange(key)}
+              >
+                {index + 1}. {node.html}
+              </Item>
+              {isActive ? <Content side="left">{getContent(node)}</Content> : null}
+            </Fragment>
           );
         })}
-      </Columns>
-    </Tabs.Root>
+      </div>
+
+      <Content side="right">{selectedNode ? getContent(selectedNode) : null}</Content>
+    </Columns>
   </Wrapper>
-);
+  );
+};
 
 function getContent(node: EnhancedNodeResult) {
   const { handleCopyLink, handleJumpToElement } = useA11yContext();
