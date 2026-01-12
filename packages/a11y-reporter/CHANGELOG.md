@@ -1,3 +1,10 @@
+## [0.0.8](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.7...storybook-a11y-reporter-v0.0.8) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** externalize dev deps ([67295a0](https://github.com/NMIT-WR/storybook-addons/commit/67295a03e6280003ff1ff9caa437f25f72da965c))
+
 ## [0.0.7](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.6...storybook-a11y-reporter-v0.0.7) (2026-01-12)
 
 
