@@ -112,38 +112,73 @@ function formatJUnit(entries: StoryReportEntry[]): string {
   ].join('\n');
 }
 
-async function writeReports(entries: StoryReportEntry[], options: Required<ReporterOptions>) {
+function getOutputPaths(options: Required<ReporterOptions>) {
   const outputDir = path.resolve(process.cwd(), options.outputDir);
+  return {
+    outputDir,
+    reportPath: path.join(outputDir, 'report.json'),
+    ndjsonPath: path.join(outputDir, 'report.ndjson'),
+    summaryPath: path.join(outputDir, 'summary.md'),
+    junitPath: path.join(outputDir, 'junit.xml'),
+  };
+}
+
+async function appendEntry(entry: StoryReportEntry, options: Required<ReporterOptions>) {
+  const { outputDir, ndjsonPath } = getOutputPaths(options);
+  await fs.ensureDir(outputDir);
+  await fs.appendFile(ndjsonPath, `${JSON.stringify(entry)}\n`);
+  return ndjsonPath;
+}
+
+async function readEntriesFromNdjson(ndjsonPath: string): Promise<StoryReportEntry[]> {
+  const exists = await fs.pathExists(ndjsonPath);
+  if (!exists) return [];
+  const content = await fs.readFile(ndjsonPath, 'utf8');
+  return content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as StoryReportEntry);
+}
+
+async function writeReports(entries: StoryReportEntry[], options: Required<ReporterOptions>) {
+  const { outputDir, reportPath, summaryPath, junitPath } = getOutputPaths(options);
   await fs.ensureDir(outputDir);
 
-  const reportPath = path.join(outputDir, 'report.json');
   await fs.writeJSON(reportPath, entries, { spaces: 2 });
-
-  const summaryPath = path.join(outputDir, 'summary.md');
   await fs.writeFile(summaryPath, formatSummary(entries));
 
   if (options.writeJUnit) {
-    const junitPath = path.join(outputDir, 'junit.xml');
     await fs.writeFile(junitPath, formatJUnit(entries));
   }
 }
 
 export function createA11yReporter(options?: ReporterOptions): TestRunnerConfig {
   const resolved = resolveOptions(options);
-  const entries: StoryReportEntry[] = [];
 
   return {
     async postVisit(page, context) {
       const storyId = context.id;
       const storyContext = await getStoryContext(page, context).catch(() => null);
 
-      await page.waitForFunction(
-        (id: string) => (window as any).__TECHSIO_A11Y_RESULTS__?.storyId === id,
-        storyId,
-        { timeout: resolved.waitForResultsMs }
-      );
+      const a11yParams = (storyContext as any)?.parameters?.a11y ?? null;
+      const a11yGlobals = (storyContext as any)?.globals?.a11y ?? null;
+      const shouldWaitForResults =
+        a11yParams?.disable !== true &&
+        a11yParams?.test !== 'off' &&
+        a11yGlobals?.manual !== true;
 
-      const pageResults = await page.evaluate(() => (window as any).__TECHSIO_A11Y_RESULTS__ ?? null);
+      if (shouldWaitForResults) {
+        await page.waitForFunction(
+          (id: string) => (window as any).__TECHSIO_A11Y_RESULTS__?.storyId === id,
+          storyId,
+          { timeout: resolved.waitForResultsMs }
+        );
+      }
+
+      const pageResults = shouldWaitForResults
+        ? await page.evaluate(() => (window as any).__TECHSIO_A11Y_RESULTS__ ?? null)
+        : null;
 
       const entry: StoryReportEntry = {
         storyId,
@@ -154,7 +189,8 @@ export function createA11yReporter(options?: ReporterOptions): TestRunnerConfig 
         results: pageResults?.results ?? null,
       };
 
-      entries.push(entry);
+      const ndjsonPath = await appendEntry(entry, resolved);
+      const entries = await readEntriesFromNdjson(ndjsonPath);
       await writeReports(entries, resolved);
 
       if (resolved.failOnViolations && countViolations(entry.results) > 0) {
@@ -166,7 +202,24 @@ export function createA11yReporter(options?: ReporterOptions): TestRunnerConfig 
 
 export function readReport(filePath = 'a11y-report/report.json'): StoryReportEntry[] {
   const resolvedPath = path.resolve(process.cwd(), filePath);
-  return fs.readJSONSync(resolvedPath);
+  if (fs.existsSync(resolvedPath)) {
+    return fs.readJSONSync(resolvedPath);
+  }
+
+  const ndjsonPath = resolvedPath.endsWith('report.json')
+    ? resolvedPath.replace(/report\.json$/, 'report.ndjson')
+    : `${resolvedPath}.ndjson`;
+
+  if (!fs.existsSync(ndjsonPath)) {
+    return [];
+  }
+
+  const content = fs.readFileSync(ndjsonPath, 'utf8');
+  return content
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as StoryReportEntry);
 }
 
 export function printSummary(entries: StoryReportEntry[]): string {
