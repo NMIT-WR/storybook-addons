@@ -1,3 +1,11 @@
+## [0.0.13](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.12...storybook-a11y-reporter-v0.0.13) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** add culori types ([684421c](https://github.com/NMIT-WR/storybook-addons/commit/684421c28749de72e7819b7fdb00ce575214b8b1))
+* **addon-a11y-apca:** support lab color parsing ([69e8359](https://github.com/NMIT-WR/storybook-addons/commit/69e8359dd127741baff3fa3a8e65c98b36ca48ae))
+
 ## [0.0.12](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.11...storybook-a11y-reporter-v0.0.12) (2026-01-12)
 
 
