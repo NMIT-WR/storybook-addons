@@ -1,3 +1,10 @@
+## [0.0.13](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.12...storybook-better-a11y-v0.0.13) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** avoid container-only APCA checks ([65c60dc](https://github.com/NMIT-WR/storybook-addons/commit/65c60dcfe26359d0234728d065aeb514261ea464))
+
 ## [0.0.12](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.11...storybook-better-a11y-v0.0.12) (2026-01-12)
 
 
