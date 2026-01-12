@@ -5,6 +5,7 @@ export default defineConfig({
   plugins: [pluginPublint()],
   lib: [
     {
+      bundle: false,
       format: 'esm',
       dts: true,
       autoExtension: false,
