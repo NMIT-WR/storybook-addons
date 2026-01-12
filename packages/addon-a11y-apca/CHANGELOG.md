@@ -1,3 +1,10 @@
+## [0.0.9](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.8...storybook-better-a11y-v0.0.9) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** use classic jsx runtime ([ec6765b](https://github.com/NMIT-WR/storybook-addons/commit/ec6765bc01589d65cd3ca4ada860d55c3a28b41a))
+
 ## [0.0.8](https://github.com/NMIT-WR/storybook-addons/compare/storybook-better-a11y-v0.0.7...storybook-better-a11y-v0.0.8) (2026-01-12)
 
 
