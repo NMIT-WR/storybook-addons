@@ -50,13 +50,23 @@ function getComputedColor(element: Element, property: 'color' | 'backgroundColor
 function getEffectiveBackgroundColor(element: Element): string {
   let current: Element | null = element;
 
-  while (current && current !== document.body) {
+  while (current) {
     const bgColor = getComputedColor(current, 'backgroundColor');
     // Check if background is not transparent
     if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
       return bgColor;
     }
+    if (current === document.body) {
+      break;
+    }
     current = current.parentElement;
+  }
+
+  const htmlBg = document.documentElement
+    ? getComputedColor(document.documentElement, 'backgroundColor')
+    : '';
+  if (htmlBg && htmlBg !== 'rgba(0, 0, 0, 0)' && htmlBg !== 'transparent') {
+    return htmlBg;
   }
 
   // Default to white if no background found
