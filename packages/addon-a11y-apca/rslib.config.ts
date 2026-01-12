@@ -3,20 +3,25 @@ import { pluginPublint } from 'rsbuild-plugin-publint';
 
 export default defineConfig({
   plugins: [pluginPublint()],
-  source: {
-    entry: {
-      index: './src/**/*.{ts,tsx}',
-    },
-  },
   lib: [
     {
-      bundle: false,
       format: 'esm',
       dts: true,
       autoExtension: false,
+      autoExternal: {
+        devDependencies: true,
+      },
+      source: {
+        entry: {
+          index: './src/index.ts',
+          manager: './src/manager.tsx',
+          preview: './src/preview.tsx',
+          postinstall: './src/postinstall.ts',
+        },
+      },
+      output: {
+        target: 'web',
+      },
     },
   ],
-  output: {
-    target: 'web',
-  },
 });
