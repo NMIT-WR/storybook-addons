@@ -1,3 +1,10 @@
+## [0.0.7](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.6...storybook-a11y-reporter-v0.0.7) (2026-01-12)
+
+
+### Bug Fixes
+
+* **addon-a11y-apca:** emit sources for manager ([d1976be](https://github.com/NMIT-WR/storybook-addons/commit/d1976bea373aa5d4a0e47f55686fe5e3d6f6d7a9))
+
 ## [0.0.6](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.5...storybook-a11y-reporter-v0.0.6) (2026-01-12)
 
 
