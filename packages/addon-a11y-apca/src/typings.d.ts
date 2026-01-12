@@ -5,3 +5,8 @@ declare module 'apca-w3' {
 }
 
 declare module 'vitest-axe/matchers';
+
+declare module 'culori' {
+  export function parse(...args: any[]): any;
+  export function converter(...args: any[]): any;
+}
