@@ -9,6 +9,17 @@ import { withVisionSimulator } from './withVisionSimulator';
 
 let vitestMatchersExtended = false;
 
+const loadVitestMatchers = async () => {
+  try {
+    return await import(
+      /* webpackIgnore: true, @vite-ignore */
+      'vitest-axe/matchers'
+    );
+  } catch (error) {
+    return null;
+  }
+};
+
 export const decorators = [withVisionSimulator];
 
 export const afterEach: AfterEach<any> = async ({
@@ -61,9 +72,11 @@ export const afterEach: AfterEach<any> = async ({
         if (getIsVitestStandaloneRun()) {
           if (hasViolations && getMode() === 'failed') {
             if (!vitestMatchersExtended) {
-              const { toHaveNoViolations } = await import('vitest-axe/matchers');
-              expect.extend({ toHaveNoViolations });
-              vitestMatchersExtended = true;
+              const matchers = await loadVitestMatchers();
+              if (matchers?.toHaveNoViolations) {
+                expect.extend({ toHaveNoViolations: matchers.toHaveNoViolations });
+                vitestMatchersExtended = true;
+              }
             }
 
             // @ts-expect-error - todo - fix type extension of expect from storybook/test
