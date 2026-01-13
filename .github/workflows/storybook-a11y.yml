@@ -83,29 +83,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - uses: pnpm/action-setup@v4
-        with:
-          version: ${{ inputs['pnpm-version'] }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs['node-version'] }}
-          cache: pnpm
-
-      - name: Install dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          cmd="${{ inputs['install-command'] }}"
-          cmd="${cmd//\{\{workdir\}\}/${{ inputs['working-directory'] }}}"
-          echo "Running: $cmd"
-          eval "$cmd"
-
-      - name: Install Playwright browsers
-        if: ${{ inputs['install-playwright'] }}
-        run: pnpm exec playwright install --with-deps chromium
-
       - name: Resolve paths
         shell: bash
         run: |
@@ -142,6 +119,33 @@ jobs:
           echo "REPORT_ROOT=$REPORT_ROOT" >> "$GITHUB_ENV"
           echo "STATIC_DIR=$STATIC_DIR" >> "$GITHUB_ENV"
           echo "BASE_URL=$BASE_URL_INPUT" >> "$GITHUB_ENV"
+
+      - uses: pnpm/action-setup@v4
+        if: ${{ inputs['pnpm-version'] != '' }}
+        with:
+          version: ${{ inputs['pnpm-version'] }}
+
+      - uses: pnpm/action-setup@v4
+        if: ${{ inputs['pnpm-version'] == '' }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs['node-version'] }}
+          cache: pnpm
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmd="${{ inputs['install-command'] }}"
+          cmd="${cmd//\{\{workdir\}\}/${{ inputs['working-directory'] }}}"
+          echo "Running: $cmd"
+          eval "$cmd"
+
+      - name: Install Playwright browsers
+        if: ${{ inputs['install-playwright'] }}
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Build Storybook
         shell: bash
@@ -244,14 +248,14 @@ jobs:
           fi
 
       - name: Upload a11y artifacts
-        if: ${{ always() && inputs['upload-artifacts'] }}
+        if: ${{ always() && inputs['upload-artifacts'] && env.REPORT_ROOT != '' }}
         uses: actions/upload-artifact@v4
         with:
           name: storybook-a11y-report
           path: ${{ env.REPORT_ROOT }}/**
 
       - name: Publish test results (JUnit)
-        if: ${{ always() && inputs['write-junit'] && hashFiles(format('{0}/**/junit.xml', env.REPORT_ROOT)) != '' }}
+        if: ${{ always() && inputs['write-junit'] && env.REPORT_ROOT != '' && hashFiles(format('{0}/**/junit.xml', env.REPORT_ROOT)) != '' }}
         uses: dorny/test-reporter@v1
         with:
           name: Storybook A11y
@@ -261,7 +265,7 @@ jobs:
           fail-on-empty: false
 
       - name: Post PR comment
-        if: ${{ always() && inputs['post-pr-comment'] && github.event_name == 'pull_request' }}
+        if: ${{ always() && inputs['post-pr-comment'] && github.event_name == 'pull_request' && env.REPORT_ROOT != '' && hashFiles(format('{0}/comment.md', env.REPORT_ROOT)) != '' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}

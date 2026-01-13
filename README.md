@@ -14,7 +14,7 @@ Example usage from another repo:
 ```yaml
 jobs:
   storybook-a11y:
-    uses: NMIT-WR/storybook-addons/.github/workflows/storybook-a11y.yml@storybook-a11y-workflow-v0.1.2
+    uses: NMIT-WR/storybook-addons/.github/workflows/storybook-a11y.yml@storybook-a11y-workflow-v0.1.3
     with:
       working-directory: libs/ui
       build-command: pnpm -C {{workdir}} build:storybook
@@ -27,3 +27,4 @@ jobs:
 Notes:
 - Pin `@vX` to a tag or commit SHA when you publish.
 - Your Storybook test-runner should use `@techsio/storybook-a11y-reporter` so `A11Y_REPORT_*` env vars are respected.
+- If your repo already defines `packageManager` with pnpm, pass `pnpm-version: ""` to avoid version conflicts.
