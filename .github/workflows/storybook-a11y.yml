@@ -567,9 +567,21 @@ jobs:
             );
             lines.push('');
 
-            if (groupStats.size === 0) {
+            const hasChanges = newEntries.length > 0 || resolvedEntries.length > 0;
+            if (!hasChanges) {
+              const groupNames = new Set();
+              for (const entry of currentEntries) groupNames.add(entry.group);
+              for (const entry of baselineEntries) groupNames.add(entry.group);
+              for (const groupName of groupNames) {
+                groupStats.set(groupName, {
+                  newCount: 0,
+                  newApca: 0,
+                  resolvedCount: 0,
+                  resolvedApca: 0,
+                });
+              }
               lines.push('No changes detected against baseline.');
-              return lines;
+              lines.push('');
             }
 
             lines.push('## By group');
@@ -586,32 +598,36 @@ jobs:
 
             lines.push('');
 
+            lines.push('<details>');
+            lines.push(`<summary>New violations (${newEntries.length})</summary>`);
+            lines.push('');
             if (newStoryRows.length > 0) {
-              lines.push('<details>');
-              lines.push(`<summary>New violations (${newEntries.length})</summary>`);
-              lines.push('');
               lines.push('| Story | Violations | APCA |');
               lines.push('| --- | --- | --- |');
               for (const row of newStoryRows) {
                 lines.push(`| ${escapePipes(row.story)} | ${row.violations} | ${row.apca} |`);
               }
-              lines.push('');
-              lines.push('</details>');
-              lines.push('');
+            } else {
+              lines.push('_No new violations._');
             }
+            lines.push('');
+            lines.push('</details>');
+            lines.push('');
 
+            lines.push('<details>');
+            lines.push(`<summary>Resolved violations (${resolvedEntries.length})</summary>`);
+            lines.push('');
             if (resolvedStoryRows.length > 0) {
-              lines.push('<details>');
-              lines.push(`<summary>Resolved violations (${resolvedEntries.length})</summary>`);
-              lines.push('');
               lines.push('| Story | Violations | APCA |');
               lines.push('| --- | --- | --- |');
               for (const row of resolvedStoryRows) {
                 lines.push(`| ${escapePipes(row.story)} | ${row.violations} | ${row.apca} |`);
               }
-              lines.push('');
-              lines.push('</details>');
+            } else {
+              lines.push('_No resolved violations._');
             }
+            lines.push('');
+            lines.push('</details>');
 
             return lines;
           }
