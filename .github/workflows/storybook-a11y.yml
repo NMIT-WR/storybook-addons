@@ -374,6 +374,16 @@ jobs:
               .trim();
           }
 
+          function escapeHtml(value) {
+            return String(value)
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/\"/g, '&quot;')
+              .replace(/'/g, '&#39;')
+              .trim();
+          }
+
           const KEY_SEPARATOR = '\x00';
 
           function summarizeReport(report) {
@@ -417,6 +427,7 @@ jobs:
                 story: `${title} / ${name}`,
                 violations: violationCount,
                 apca: apcaCount,
+                group: groupName,
               });
             }
 
@@ -467,40 +478,62 @@ jobs:
             lines.push('');
             lines.push('## By group');
             lines.push('');
-            lines.push('| Group | Stories | Stories w/ violations | Violations | APCA |');
-            lines.push('| --- | --- | --- | --- | --- |');
-
-            const sortedGroups = Array.from(summary.groupStats.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-            for (const [groupName, stats] of sortedGroups) {
-              lines.push(
-                `| ${escapePipes(groupName)} | ${stats.stories} | ${stats.storiesWithViolations} | ${stats.violations} | ${stats.apca} |`,
-              );
+            const groupStoryRows = new Map();
+            for (const row of summary.storyRows) {
+              if (row.violations <= 0) continue;
+              const group = row.group || 'Other';
+              const list = groupStoryRows.get(group) ?? [];
+              list.push(row);
+              groupStoryRows.set(group, list);
             }
-
-            const violatingRows = summary.storyRows
-              .filter((row) => row.violations > 0)
-              .sort((a, b) => {
+            for (const [groupName, rows] of groupStoryRows.entries()) {
+              rows.sort((a, b) => {
                 if (b.violations !== a.violations) return b.violations - a.violations;
                 if (b.apca !== a.apca) return b.apca - a.apca;
                 return a.story.localeCompare(b.story);
               });
+              groupStoryRows.set(groupName, rows);
+            }
 
-            lines.push('');
+            lines.push('<table>');
+            lines.push('<thead>');
+            lines.push(
+              '<tr><th>Group</th><th>Stories</th><th>Stories w/ violations</th><th>Violations</th><th>APCA</th><th>Details</th></tr>',
+            );
+            lines.push('</thead>');
+            lines.push('<tbody>');
 
-            if (violatingRows.length === 0) {
-              lines.push('No violations found.');
-            } else {
+            const sortedGroups = Array.from(summary.groupStats.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+            for (const [groupName, stats] of sortedGroups) {
+              const detailsRows = groupStoryRows.get(groupName) ?? [];
+              lines.push('<tr>');
+              lines.push(`<td>${escapeHtml(groupName)}</td>`);
+              lines.push(`<td>${stats.stories}</td>`);
+              lines.push(`<td>${stats.storiesWithViolations}</td>`);
+              lines.push(`<td>${stats.violations}</td>`);
+              lines.push(`<td>${stats.apca}</td>`);
+              lines.push('<td>');
               lines.push('<details>');
-              lines.push('<summary>Stories with violations</summary>');
+              lines.push(`<summary>Violations (${detailsRows.length})</summary>`);
               lines.push('');
-              lines.push('| Story | Violations | APCA |');
-              lines.push('| --- | --- | --- |');
-              for (const row of violatingRows) {
-                lines.push(`| ${escapePipes(row.story)} | ${row.violations} | ${row.apca} |`);
+              if (detailsRows.length > 0) {
+                lines.push('<ul>');
+                for (const row of detailsRows) {
+                  lines.push(
+                    `<li>${escapeHtml(row.story)} — ${row.violations} (APCA: ${row.apca})</li>`,
+                  );
+                }
+                lines.push('</ul>');
+              } else {
+                lines.push('<em>No violations.</em>');
               }
               lines.push('');
               lines.push('</details>');
+              lines.push('</td>');
+              lines.push('</tr>');
             }
+            lines.push('</tbody>');
+            lines.push('</table>');
 
             return lines;
           }
@@ -554,8 +587,33 @@ jobs:
               });
             };
 
+            const buildStoryRowsByGroup = (entries) => {
+              const groupMap = new Map();
+              for (const entry of entries) {
+                const group = entry.group || 'Other';
+                const storyMap = groupMap.get(group) ?? new Map();
+                const stats = storyMap.get(entry.story) ?? { story: entry.story, violations: 0, apca: 0 };
+                stats.violations += 1;
+                if (entry.apca) stats.apca += 1;
+                storyMap.set(entry.story, stats);
+                groupMap.set(group, storyMap);
+              }
+              const result = new Map();
+              for (const [groupName, storyMap] of groupMap.entries()) {
+                const rows = Array.from(storyMap.values()).sort((a, b) => {
+                  if (b.violations !== a.violations) return b.violations - a.violations;
+                  if (b.apca !== a.apca) return b.apca - a.apca;
+                  return a.story.localeCompare(b.story);
+                });
+                result.set(groupName, rows);
+              }
+              return result;
+            };
+
             const newStoryRows = buildStoryRows(newEntries);
             const resolvedStoryRows = buildStoryRows(resolvedEntries);
+            const newStoryRowsByGroup = buildStoryRowsByGroup(newEntries);
+            const resolvedStoryRowsByGroup = buildStoryRowsByGroup(resolvedEntries);
 
             const lines = [];
             lines.push(`# Storybook A11y Report (Delta vs ${label})`);
@@ -586,15 +644,60 @@ jobs:
 
             lines.push('## By group');
             lines.push('');
-            lines.push('| Group | New | New APCA | Resolved | Resolved APCA |');
-            lines.push('| --- | --- | --- | --- | --- |');
-
+            lines.push('<table>');
+            lines.push('<thead>');
+            lines.push(
+              '<tr><th>Group</th><th>New</th><th>New APCA</th><th>Resolved</th><th>Resolved APCA</th><th>Details</th></tr>',
+            );
+            lines.push('</thead>');
+            lines.push('<tbody>');
             const sortedGroups = Array.from(groupStats.entries()).sort((a, b) => a[0].localeCompare(b[0]));
             for (const [groupName, stats] of sortedGroups) {
+              const newRows = newStoryRowsByGroup.get(groupName) ?? [];
+              const resolvedRows = resolvedStoryRowsByGroup.get(groupName) ?? [];
+              lines.push('<tr>');
+              lines.push(`<td>${escapeHtml(groupName)}</td>`);
+              lines.push(`<td>${stats.newCount}</td>`);
+              lines.push(`<td>${stats.newApca}</td>`);
+              lines.push(`<td>${stats.resolvedCount}</td>`);
+              lines.push(`<td>${stats.resolvedApca}</td>`);
+              lines.push('<td>');
+              lines.push('<details>');
               lines.push(
-                `| ${escapePipes(groupName)} | ${stats.newCount} | ${stats.newApca} | ${stats.resolvedCount} | ${stats.resolvedApca} |`,
+                `<summary>New ${stats.newCount} / Resolved ${stats.resolvedCount}</summary>`,
               );
+              lines.push('');
+              lines.push('<p><strong>New</strong></p>');
+              if (newRows.length > 0) {
+                lines.push('<ul>');
+                for (const row of newRows) {
+                  lines.push(
+                    `<li>${escapeHtml(row.story)} — ${row.violations} (APCA: ${row.apca})</li>`,
+                  );
+                }
+                lines.push('</ul>');
+              } else {
+                lines.push('<em>No new violations.</em>');
+              }
+              lines.push('<p><strong>Resolved</strong></p>');
+              if (resolvedRows.length > 0) {
+                lines.push('<ul>');
+                for (const row of resolvedRows) {
+                  lines.push(
+                    `<li>${escapeHtml(row.story)} — ${row.violations} (APCA: ${row.apca})</li>`,
+                  );
+                }
+                lines.push('</ul>');
+              } else {
+                lines.push('<em>No resolved violations.</em>');
+              }
+              lines.push('');
+              lines.push('</details>');
+              lines.push('</td>');
+              lines.push('</tr>');
             }
+            lines.push('</tbody>');
+            lines.push('</table>');
 
             lines.push('');
 
