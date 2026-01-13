@@ -1,0 +1,285 @@
+name: Storybook A11y (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      node-version:
+        type: string
+        default: "lts/*"
+      pnpm-version:
+        type: string
+        default: "10"
+      working-directory:
+        type: string
+        default: "."
+      install-command:
+        type: string
+        default: "pnpm install --frozen-lockfile"
+      build-command:
+        type: string
+        default: "pnpm -C {{workdir}} build:storybook"
+      test-command:
+        type: string
+        default: "pnpm -C {{workdir}} exec test-storybook --url \"{{url}}\" --config-dir {{configDir}} --maxWorkers {{maxWorkers}} --testTimeout {{testTimeout}}"
+      storybook-static-dir:
+        type: string
+        default: "storybook-static"
+      storybook-config-dir:
+        type: string
+        default: ".storybook"
+      storybook-url:
+        type: string
+        default: ""
+      port:
+        type: number
+        default: 6006
+      themes:
+        type: string
+        default: '["light","dark"]'
+      globals-template:
+        type: string
+        default: "theme:{{theme}}"
+      a11y-output-dir:
+        type: string
+        default: "a11y-report"
+      fail-on-violations:
+        type: boolean
+        default: false
+      write-junit:
+        type: boolean
+        default: true
+      wait-ms:
+        type: number
+        default: 30000
+      test-workers:
+        type: number
+        default: 2
+      test-timeout:
+        type: number
+        default: 60000
+      install-playwright:
+        type: boolean
+        default: true
+      upload-artifacts:
+        type: boolean
+        default: true
+      post-pr-comment:
+        type: boolean
+        default: true
+      comment-title:
+        type: string
+        default: "Storybook A11y Report"
+
+jobs:
+  storybook-a11y:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      checks: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ inputs.pnpm-version }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: pnpm
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmd='${{ inputs.install-command }}'
+          cmd="${cmd//\{\{workdir\}\}/${{ inputs.working-directory }}}"
+          echo "Running: $cmd"
+          eval "$cmd"
+
+      - name: Install Playwright browsers
+        if: ${{ inputs.install-playwright }}
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Resolve paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          WORKDIR_INPUT='${{ inputs.working-directory }}'
+          if [ -z "$WORKDIR_INPUT" ]; then
+            WORKDIR_INPUT="."
+          fi
+          WORKDIR="${WORKDIR_INPUT%/}"
+          if [ -z "$WORKDIR" ]; then
+            WORKDIR="."
+          fi
+
+          REPORT_DIR_INPUT='${{ inputs.a11y-output-dir }}'
+          if [[ "$REPORT_DIR_INPUT" = /* ]]; then
+            REPORT_ROOT="$REPORT_DIR_INPUT"
+          else
+            REPORT_ROOT="$WORKDIR/$REPORT_DIR_INPUT"
+          fi
+
+          STATIC_DIR_INPUT='${{ inputs.storybook-static-dir }}'
+          if [[ "$STATIC_DIR_INPUT" = /* ]]; then
+            STATIC_DIR="$STATIC_DIR_INPUT"
+          else
+            STATIC_DIR="$WORKDIR/$STATIC_DIR_INPUT"
+          fi
+
+          BASE_URL_INPUT='${{ inputs.storybook-url }}'
+          if [ -z "$BASE_URL_INPUT" ]; then
+            BASE_URL_INPUT="http://127.0.0.1:${{ inputs.port }}/"
+          fi
+
+          echo "WORKDIR=$WORKDIR" >> "$GITHUB_ENV"
+          echo "REPORT_ROOT=$REPORT_ROOT" >> "$GITHUB_ENV"
+          echo "STATIC_DIR=$STATIC_DIR" >> "$GITHUB_ENV"
+          echo "BASE_URL=$BASE_URL_INPUT" >> "$GITHUB_ENV"
+
+      - name: Build Storybook
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmd='${{ inputs.build-command }}'
+          cmd="${cmd//\{\{workdir\}\}/$WORKDIR}"
+          echo "Running: $cmd"
+          eval "$cmd"
+
+      - name: Run Storybook A11y tests
+        shell: bash
+        env:
+          THEMES_JSON: ${{ inputs.themes }}
+          GLOBALS_TEMPLATE: ${{ inputs.globals-template }}
+          REPORT_DIR_INPUT: ${{ inputs.a11y-output-dir }}
+          FAIL_ON_VIOLATIONS: ${{ inputs.fail-on-violations }}
+          WRITE_JUNIT: ${{ inputs.write-junit }}
+          WAIT_MS: ${{ inputs.wait-ms }}
+          TEST_WORKERS: ${{ inputs.test-workers }}
+          TEST_TIMEOUT: ${{ inputs.test-timeout }}
+          CONFIG_DIR: ${{ inputs.storybook-config-dir }}
+          TEST_COMMAND_TEMPLATE: ${{ inputs.test-command }}
+          COMMENT_TITLE: ${{ inputs.comment-title }}
+        run: |
+          set -euo pipefail
+
+          mapfile -t THEMES < <(python3 - <<'PY' "$THEMES_JSON"
+import json
+import sys
+
+try:
+    themes = json.loads(sys.argv[1])
+except json.JSONDecodeError as exc:
+    raise SystemExit(f"themes must be valid JSON: {exc}")
+
+if not isinstance(themes, list) or not themes:
+    raise SystemExit("themes must be a non-empty JSON array of strings")
+
+for theme in themes:
+    if not isinstance(theme, str):
+        raise SystemExit("themes entries must be strings")
+    print(theme)
+PY
+          )
+
+          mkdir -p "$REPORT_ROOT"
+
+          SERVER_LOG="$RUNNER_TEMP/storybook-server.log"
+          python3 -m http.server "${{ inputs.port }}" --directory "$STATIC_DIR" > "$SERVER_LOG" 2>&1 &
+          SERVER_PID=$!
+          cleanup() {
+            kill "$SERVER_PID" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          sleep 2
+
+          COMMENT_PATH="$REPORT_ROOT/comment.md"
+          printf "<!-- storybook-a11y-report -->\n## %s\n\n" "$COMMENT_TITLE" > "$COMMENT_PATH"
+          if [ "$FAIL_ON_VIOLATIONS" = "false" ]; then
+            printf "> ⚠️ Non-blocking mode: violations will NOT fail CI (A11Y_REPORT_FAIL_ON_VIOLATIONS=false).\n\n" >> "$COMMENT_PATH"
+          fi
+
+          FAILURES=0
+
+          for theme in "${THEMES[@]}"; do
+            theme_dir="$REPORT_DIR_INPUT/$theme"
+            mkdir -p "$REPORT_ROOT/$theme"
+
+            url="$BASE_URL"
+            if [ -n "$GLOBALS_TEMPLATE" ]; then
+              globals="${GLOBALS_TEMPLATE//\{\{theme\}\}/$theme}"
+              if [[ "$url" == *"?"* ]]; then
+                url="${url}&globals=${globals}"
+              else
+                url="${url}?globals=${globals}"
+              fi
+            fi
+
+            cmd="$TEST_COMMAND_TEMPLATE"
+            cmd="${cmd//\{\{workdir\}\}/$WORKDIR}"
+            cmd="${cmd//\{\{url\}\}/$url}"
+            cmd="${cmd//\{\{configDir\}\}/$CONFIG_DIR}"
+            cmd="${cmd//\{\{maxWorkers\}\}/$TEST_WORKERS}"
+            cmd="${cmd//\{\{testTimeout\}\}/$TEST_TIMEOUT}"
+
+            set +e
+            A11Y_REPORT_OUTPUT_DIR="$theme_dir" \
+            A11Y_REPORT_FAIL_ON_VIOLATIONS="$FAIL_ON_VIOLATIONS" \
+            A11Y_REPORT_WRITE_JUNIT="$WRITE_JUNIT" \
+            A11Y_REPORT_JUNIT="$WRITE_JUNIT" \
+            A11Y_REPORT_WAIT_MS="$WAIT_MS" \
+            eval "$cmd"
+            status=$?
+            set -e
+
+            if [ "$status" -ne 0 ]; then
+              FAILURES=1
+            fi
+
+            if [ -f "$REPORT_ROOT/$theme/report.json" ]; then
+              npx --yes @techsio/storybook-a11y-reporter \
+                --input "$REPORT_ROOT/$theme/report.json" \
+                --fail-on-violations false > "$REPORT_ROOT/$theme/summary.md"
+            else
+              echo "No a11y report JSON found for $theme. Storybook test-runner likely failed before reporting." > "$REPORT_ROOT/$theme/summary.md"
+            fi
+
+            printf "### %s\n\n" "$theme" >> "$COMMENT_PATH"
+            cat "$REPORT_ROOT/$theme/summary.md" >> "$COMMENT_PATH"
+            printf "\n\n" >> "$COMMENT_PATH"
+          done
+
+          if [ "$FAIL_ON_VIOLATIONS" != "false" ] && [ "$FAILURES" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Upload a11y artifacts
+        if: ${{ always() && inputs.upload-artifacts }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-a11y-report
+          path: ${{ env.REPORT_ROOT }}/**
+
+      - name: Publish test results (JUnit)
+        if: ${{ always() && inputs.write-junit && hashFiles(format('{0}/**/junit.xml', env.REPORT_ROOT)) != '' }}
+        uses: dorny/test-reporter@v1
+        with:
+          name: Storybook A11y
+          path: ${{ env.REPORT_ROOT }}/**/junit.xml
+          reporter: java-junit
+          fail-on-error: false
+          fail-on-empty: false
+
+      - name: Post PR comment
+        if: ${{ always() && inputs.post-pr-comment && github.event_name == 'pull_request' }}
+        uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: ${{ env.REPORT_ROOT }}/comment.md
