@@ -246,10 +246,10 @@ jobs:
             apca_violations=$(grep -m1 '^- APCA violations:' "$summary_path" | cut -d: -f2- | xargs || true)
 
             if [ -n "$total_stories" ]; then
-              printf "- **%s**: %s stories, %s with violations, %s total (%s APCA)\n" \
+              printf -- "- **%s**: %s stories, %s with violations, %s total (%s APCA)\n" \
                 "$theme" "$total_stories" "$stories_with_violations" "$total_violations" "$apca_violations" >> "$COMMENT_PATH"
             else
-              printf "- **%s**: report unavailable\n" "$theme" >> "$COMMENT_PATH"
+              printf -- "- **%s**: report unavailable\n" "$theme" >> "$COMMENT_PATH"
             fi
 
             printf "\n<details>\n<summary>%s details</summary>\n\n" "$theme" >> "$COMMENT_PATH"
