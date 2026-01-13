@@ -264,6 +264,7 @@ jobs:
           if [ "$FAIL_ON_VIOLATIONS" != "false" ] && [ "$FAILURES" -ne 0 ]; then
             exit 1
           fi
+          exit 0
 
       - name: Upload a11y artifacts
         if: ${{ always() && inputs['upload-artifacts'] && env.REPORT_ROOT != '' }}
