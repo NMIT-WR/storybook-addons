@@ -85,32 +85,32 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: ${{ inputs.pnpm-version }}
+          version: ${{ inputs['pnpm-version'] }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ inputs.node-version }}
+          node-version: ${{ inputs['node-version'] }}
           cache: pnpm
 
       - name: Install dependencies
         shell: bash
         run: |
           set -euo pipefail
-          cmd='${{ inputs.install-command }}'
-          cmd="${cmd//\{\{workdir\}\}/${{ inputs.working-directory }}}"
+          cmd="${{ inputs['install-command'] }}"
+          cmd="${cmd//\{\{workdir\}\}/${{ inputs['working-directory'] }}}"
           echo "Running: $cmd"
           eval "$cmd"
 
       - name: Install Playwright browsers
-        if: ${{ inputs.install-playwright }}
+        if: ${{ inputs['install-playwright'] }}
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Resolve paths
         shell: bash
         run: |
           set -euo pipefail
-          WORKDIR_INPUT='${{ inputs.working-directory }}'
+          WORKDIR_INPUT="${{ inputs['working-directory'] }}"
           if [ -z "$WORKDIR_INPUT" ]; then
             WORKDIR_INPUT="."
           fi
@@ -119,23 +119,23 @@ jobs:
             WORKDIR="."
           fi
 
-          REPORT_DIR_INPUT='${{ inputs.a11y-output-dir }}'
+          REPORT_DIR_INPUT="${{ inputs['a11y-output-dir'] }}"
           if [[ "$REPORT_DIR_INPUT" = /* ]]; then
             REPORT_ROOT="$REPORT_DIR_INPUT"
           else
             REPORT_ROOT="$WORKDIR/$REPORT_DIR_INPUT"
           fi
 
-          STATIC_DIR_INPUT='${{ inputs.storybook-static-dir }}'
+          STATIC_DIR_INPUT="${{ inputs['storybook-static-dir'] }}"
           if [[ "$STATIC_DIR_INPUT" = /* ]]; then
             STATIC_DIR="$STATIC_DIR_INPUT"
           else
             STATIC_DIR="$WORKDIR/$STATIC_DIR_INPUT"
           fi
 
-          BASE_URL_INPUT='${{ inputs.storybook-url }}'
+          BASE_URL_INPUT="${{ inputs['storybook-url'] }}"
           if [ -z "$BASE_URL_INPUT" ]; then
-            BASE_URL_INPUT="http://127.0.0.1:${{ inputs.port }}/"
+            BASE_URL_INPUT="http://127.0.0.1:${{ inputs['port'] }}/"
           fi
 
           echo "WORKDIR=$WORKDIR" >> "$GITHUB_ENV"
@@ -147,7 +147,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          cmd='${{ inputs.build-command }}'
+          cmd="${{ inputs['build-command'] }}"
           cmd="${cmd//\{\{workdir\}\}/$WORKDIR}"
           echo "Running: $cmd"
           eval "$cmd"
@@ -155,17 +155,17 @@ jobs:
       - name: Run Storybook A11y tests
         shell: bash
         env:
-          THEMES_JSON: ${{ inputs.themes }}
-          GLOBALS_TEMPLATE: ${{ inputs.globals-template }}
-          REPORT_DIR_INPUT: ${{ inputs.a11y-output-dir }}
-          FAIL_ON_VIOLATIONS: ${{ inputs.fail-on-violations }}
-          WRITE_JUNIT: ${{ inputs.write-junit }}
-          WAIT_MS: ${{ inputs.wait-ms }}
-          TEST_WORKERS: ${{ inputs.test-workers }}
-          TEST_TIMEOUT: ${{ inputs.test-timeout }}
-          CONFIG_DIR: ${{ inputs.storybook-config-dir }}
-          TEST_COMMAND_TEMPLATE: ${{ inputs.test-command }}
-          COMMENT_TITLE: ${{ inputs.comment-title }}
+          THEMES_JSON: ${{ inputs['themes'] }}
+          GLOBALS_TEMPLATE: ${{ inputs['globals-template'] }}
+          REPORT_DIR_INPUT: ${{ inputs['a11y-output-dir'] }}
+          FAIL_ON_VIOLATIONS: ${{ inputs['fail-on-violations'] }}
+          WRITE_JUNIT: ${{ inputs['write-junit'] }}
+          WAIT_MS: ${{ inputs['wait-ms'] }}
+          TEST_WORKERS: ${{ inputs['test-workers'] }}
+          TEST_TIMEOUT: ${{ inputs['test-timeout'] }}
+          CONFIG_DIR: ${{ inputs['storybook-config-dir'] }}
+          TEST_COMMAND_TEMPLATE: ${{ inputs['test-command'] }}
+          COMMENT_TITLE: ${{ inputs['comment-title'] }}
         run: |
           set -euo pipefail
 
@@ -191,7 +191,7 @@ PY
           mkdir -p "$REPORT_ROOT"
 
           SERVER_LOG="$RUNNER_TEMP/storybook-server.log"
-          python3 -m http.server "${{ inputs.port }}" --directory "$STATIC_DIR" > "$SERVER_LOG" 2>&1 &
+          python3 -m http.server "${{ inputs['port'] }}" --directory "$STATIC_DIR" > "$SERVER_LOG" 2>&1 &
           SERVER_PID=$!
           cleanup() {
             kill "$SERVER_PID" >/dev/null 2>&1 || true
@@ -261,14 +261,14 @@ PY
           fi
 
       - name: Upload a11y artifacts
-        if: ${{ always() && inputs.upload-artifacts }}
+        if: ${{ always() && inputs['upload-artifacts'] }}
         uses: actions/upload-artifact@v4
         with:
           name: storybook-a11y-report
           path: ${{ env.REPORT_ROOT }}/**
 
       - name: Publish test results (JUnit)
-        if: ${{ always() && inputs.write-junit && hashFiles(format('{0}/**/junit.xml', env.REPORT_ROOT)) != '' }}
+        if: ${{ always() && inputs['write-junit'] && hashFiles(format('{0}/**/junit.xml', env.REPORT_ROOT)) != '' }}
         uses: dorny/test-reporter@v1
         with:
           name: Storybook A11y
@@ -278,7 +278,7 @@ PY
           fail-on-empty: false
 
       - name: Post PR comment
-        if: ${{ always() && inputs.post-pr-comment && github.event_name == 'pull_request' }}
+        if: ${{ always() && inputs['post-pr-comment'] && github.event_name == 'pull_request' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
