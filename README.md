@@ -14,7 +14,7 @@ Example usage from another repo:
 ```yaml
 jobs:
   storybook-a11y:
-    uses: NMIT-WR/storybook-addons/.github/workflows/storybook-a11y.yml@storybook-a11y-workflow-v0.1.3
+    uses: NMIT-WR/storybook-addons/.github/workflows/storybook-a11y.yml@storybook-a11y-workflow-v0.1.4
     with:
       working-directory: libs/ui
       build-command: pnpm -C {{workdir}} build:storybook

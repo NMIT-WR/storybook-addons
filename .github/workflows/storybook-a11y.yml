@@ -192,6 +192,7 @@ jobs:
           if [ "$FAIL_ON_VIOLATIONS" = "false" ]; then
             printf "> ⚠️ Non-blocking mode: violations will NOT fail CI (A11Y_REPORT_FAIL_ON_VIOLATIONS=false).\n\n" >> "$COMMENT_PATH"
           fi
+          printf "### Summary\n\n" >> "$COMMENT_PATH"
 
           FAILURES=0
 
@@ -230,17 +231,34 @@ jobs:
               FAILURES=1
             fi
 
+            summary_path="$REPORT_ROOT/$theme/summary.md"
             if [ -f "$REPORT_ROOT/$theme/report.json" ]; then
               npx --yes @techsio/storybook-a11y-reporter \
                 --input "$REPORT_ROOT/$theme/report.json" \
-                --fail-on-violations false > "$REPORT_ROOT/$theme/summary.md"
+                --fail-on-violations false > "$summary_path"
             else
-              echo "No a11y report JSON found for $theme. Storybook test-runner likely failed before reporting." > "$REPORT_ROOT/$theme/summary.md"
+              echo "No a11y report JSON found for $theme. Storybook test-runner likely failed before reporting." > "$summary_path"
             fi
 
-            printf "### %s\n\n" "$theme" >> "$COMMENT_PATH"
-            cat "$REPORT_ROOT/$theme/summary.md" >> "$COMMENT_PATH"
-            printf "\n\n" >> "$COMMENT_PATH"
+            total_stories=$(grep -m1 '^- Total stories:' "$summary_path" | cut -d: -f2- | xargs || true)
+            stories_with_violations=$(grep -m1 '^- Stories with violations:' "$summary_path" | cut -d: -f2- | xargs || true)
+            total_violations=$(grep -m1 '^- Total violations:' "$summary_path" | cut -d: -f2- | xargs || true)
+            apca_violations=$(grep -m1 '^- APCA violations:' "$summary_path" | cut -d: -f2- | xargs || true)
+
+            if [ -n "$total_stories" ]; then
+              printf "- **%s**: %s stories, %s with violations, %s total (%s APCA)\n" \
+                "$theme" "$total_stories" "$stories_with_violations" "$total_violations" "$apca_violations" >> "$COMMENT_PATH"
+            else
+              printf "- **%s**: report unavailable\n" "$theme" >> "$COMMENT_PATH"
+            fi
+
+            printf "\n<details>\n<summary>%s details</summary>\n\n" "$theme" >> "$COMMENT_PATH"
+            if [ -n "$total_stories" ]; then
+              awk 'BEGIN{table=0} /^\\| Story /{table=1} {if (table) print}' "$summary_path" >> "$COMMENT_PATH"
+            else
+              cat "$summary_path" >> "$COMMENT_PATH"
+            fi
+            printf "\n\n</details>\n\n" >> "$COMMENT_PATH"
           done
 
           if [ "$FAIL_ON_VIOLATIONS" != "false" ] && [ "$FAILURES" -ne 0 ]; then
