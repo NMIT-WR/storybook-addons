@@ -14,7 +14,7 @@ Example usage from another repo:
 ```yaml
 jobs:
   storybook-a11y:
-    uses: NMIT-WR/storybook-addons/.github/workflows/storybook-a11y.yml@storybook-a11y-workflow-v0.1.6
+    uses: NMIT-WR/storybook-addons/.github/workflows/storybook-a11y.yml@storybook-a11y-workflow-v0.1.7
     with:
       working-directory: libs/ui
       build-command: pnpm -C {{workdir}} build:storybook
@@ -28,3 +28,7 @@ Notes:
 - Pin `@vX` to a tag or commit SHA when you publish.
 - Your Storybook test-runner should use `@techsio/storybook-a11y-reporter` so `A11Y_REPORT_*` env vars are respected.
 - If your repo already defines `packageManager` with pnpm, pass `pnpm-version: ""` to avoid version conflicts.
+- To enable delta reports (new/resolved) similar to the baseline workflow, pass:
+  `baseline-workflow-path: .github/workflows/storybook-a11y-baseline.yml`,
+  `baseline-branch: main` (or master), `baseline-label: main`, and
+  `baseline-artifact-prefix: storybook-a11y-baseline`.

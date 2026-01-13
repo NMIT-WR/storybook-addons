@@ -69,11 +69,27 @@ on:
       comment-title:
         type: string
         default: "Storybook A11y Report"
+      baseline-workflow-path:
+        type: string
+        default: ""
+      baseline-branch:
+        type: string
+        default: ""
+      baseline-label:
+        type: string
+        default: ""
+      baseline-artifact-prefix:
+        type: string
+        default: "storybook-a11y-baseline"
+      baseline-run-id:
+        type: string
+        default: ""
 
 jobs:
   storybook-a11y:
     runs-on: ubuntu-latest
     permissions:
+      actions: read
       contents: read
       pull-requests: write
       checks: write
@@ -82,6 +98,45 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Find baseline run
+        id: baseline
+        if: ${{ inputs['baseline-run-id'] == '' && inputs['baseline-workflow-path'] != '' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const baselinePath = `${{ inputs['baseline-workflow-path'] }}`.trim();
+            const branchInput = `${{ inputs['baseline-branch'] }}`.trim();
+            const branch =
+              branchInput || context.payload.repository?.default_branch || context.repo?.default_branch || 'main';
+            core.setOutput('branch', branch);
+            if (!baselinePath) {
+              core.setOutput('run_id', '');
+              return;
+            }
+            const { owner, repo } = context.repo;
+            const workflows = await github.rest.actions.listRepoWorkflows({ owner, repo });
+            const baseline = workflows.data.workflows?.find((workflow) => workflow.path === baselinePath);
+            if (!baseline) {
+              core.warning(`Baseline workflow not found at ${baselinePath}.`);
+              core.setOutput('run_id', '');
+              return;
+            }
+            const response = await github.rest.actions.listWorkflowRuns({
+              owner,
+              repo,
+              workflow_id: baseline.id,
+              branch,
+              status: 'success',
+              per_page: 1,
+            });
+            const runId = response.data.workflow_runs?.[0]?.id;
+            if (!runId) {
+              core.warning(`No successful baseline workflow run found on ${branch}.`);
+              core.setOutput('run_id', '');
+              return;
+            }
+            core.setOutput('run_id', String(runId));
 
       - name: Resolve paths
         shell: bash
@@ -170,10 +225,409 @@ jobs:
           CONFIG_DIR: ${{ inputs['storybook-config-dir'] }}
           TEST_COMMAND_TEMPLATE: ${{ inputs['test-command'] }}
           COMMENT_TITLE: ${{ inputs['comment-title'] }}
+          BASELINE_WORKFLOW_PATH: ${{ inputs['baseline-workflow-path'] }}
+          BASELINE_BRANCH_INPUT: ${{ inputs['baseline-branch'] }}
+          BASELINE_LABEL_INPUT: ${{ inputs['baseline-label'] }}
+          BASELINE_ARTIFACT_PREFIX: ${{ inputs['baseline-artifact-prefix'] }}
+          BASELINE_RUN_ID_INPUT: ${{ inputs['baseline-run-id'] }}
+          BASELINE_RUN_ID_FOUND: ${{ steps.baseline.outputs.run_id }}
+          BASELINE_BRANCH_FOUND: ${{ steps.baseline.outputs.branch }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
 
           mapfile -t THEMES < <(python3 -c 'import json,sys; themes=json.loads(sys.argv[1]); is_valid=isinstance(themes,list) and len(themes)>0; is_valid or (_ for _ in ()).throw(SystemExit("themes must be a non-empty JSON array of strings")); [print(t) if isinstance(t,str) else (_ for _ in ()).throw(SystemExit("themes entries must be strings")) for t in themes]' "$THEMES_JSON")
+
+          BASELINE_RUN_ID="$BASELINE_RUN_ID_INPUT"
+          if [ -z "$BASELINE_RUN_ID" ]; then
+            BASELINE_RUN_ID="$BASELINE_RUN_ID_FOUND"
+          fi
+          BASELINE_BRANCH="$BASELINE_BRANCH_INPUT"
+          if [ -z "$BASELINE_BRANCH" ]; then
+            BASELINE_BRANCH="$BASELINE_BRANCH_FOUND"
+          fi
+          BASELINE_LABEL="$BASELINE_LABEL_INPUT"
+          if [ -z "$BASELINE_LABEL" ]; then
+            if [ -n "$BASELINE_BRANCH" ]; then
+              BASELINE_LABEL="$BASELINE_BRANCH"
+            else
+              BASELINE_LABEL="baseline"
+            fi
+          fi
+
+          SUMMARY_SCRIPT="$RUNNER_TEMP/storybook-a11y-summary.mjs"
+          cat > "$SUMMARY_SCRIPT" <<'NODE'
+          #!/usr/bin/env node
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          function readArg(name) {
+            const direct = process.argv.find((arg) => arg.startsWith(`${name}=`));
+            if (direct) {
+              return direct.slice(name.length + 1);
+            }
+            const index = process.argv.indexOf(name);
+            if (index === -1 || index + 1 >= process.argv.length) return null;
+            return process.argv[index + 1];
+          }
+
+          const inputPath = readArg('--input');
+          const outputPath = readArg('--output');
+          const baselinePath = readArg('--baseline');
+          const baselineLabel = readArg('--baseline-label') ?? 'baseline';
+
+          if (!inputPath || !outputPath) {
+            console.error(
+              'Usage: storybook-a11y-summary.mjs --input <report.json> --output <summary.md> [--baseline <report.json>] [--baseline-label <label>]',
+            );
+            process.exit(1);
+          }
+
+          function loadNdjson(filePath, label) {
+            let raw;
+            try {
+              raw = fs.readFileSync(filePath, 'utf8');
+            } catch (err) {
+              throw new Error(`Failed to read ${label} file: ${filePath}`, { cause: err });
+            }
+
+            const lines = raw.split(/\r?\n/).filter((line) => line.trim().length > 0);
+            return lines.map((line, index) => {
+              try {
+                return JSON.parse(line);
+              } catch (err) {
+                throw new Error(`Failed to parse NDJSON line ${index + 1} from ${label} file: ${filePath}`, {
+                  cause: err,
+                });
+              }
+            });
+          }
+
+          function loadReport(filePath, label) {
+            if (filePath.toLowerCase().endsWith('.ndjson')) {
+              return loadNdjson(filePath, label);
+            }
+
+            let raw;
+            try {
+              raw = fs.readFileSync(filePath, 'utf8');
+            } catch (err) {
+              throw new Error(`Failed to read ${label} file: ${filePath}`, { cause: err });
+            }
+
+            let data;
+            try {
+              data = JSON.parse(raw);
+            } catch (err) {
+              const ndjsonPath = filePath.replace(/\.json$/i, '.ndjson');
+              if (ndjsonPath !== filePath && fs.existsSync(ndjsonPath)) {
+                console.warn(`JSON parse failed for ${label}; falling back to ${ndjsonPath}.`);
+                return loadNdjson(ndjsonPath, label);
+              }
+              throw new Error(`Failed to parse JSON from ${label} file: ${filePath}`, { cause: err });
+            }
+
+            if (!Array.isArray(data)) {
+              const ndjsonPath = filePath.replace(/\.json$/i, '.ndjson');
+              if (ndjsonPath !== filePath && fs.existsSync(ndjsonPath)) {
+                console.warn(`Unexpected JSON shape for ${label}; falling back to ${ndjsonPath}.`);
+                return loadNdjson(ndjsonPath, label);
+              }
+              throw new Error(`Expected ${label} report.json to be an array of stories.`);
+            }
+
+            return data;
+          }
+
+          let data;
+          try {
+            data = loadReport(inputPath, 'input');
+          } catch (err) {
+            console.error(err instanceof Error ? err.message : String(err));
+            process.exit(1);
+          }
+
+          let baselineData = null;
+          let baselineError = null;
+          if (baselinePath) {
+            try {
+              baselineData = loadReport(baselinePath, `baseline (${baselineLabel})`);
+            } catch (err) {
+              baselineError = err instanceof Error ? err.message : String(err);
+              baselineData = null;
+            }
+          }
+
+          function isApcaViolation(violation) {
+            const id = String(violation?.id ?? '').toLowerCase();
+            const tags = Array.isArray(violation?.tags)
+              ? violation.tags.map((tag) => String(tag).toLowerCase())
+              : [];
+            return id.includes('apca') || tags.some((tag) => tag.includes('apca'));
+          }
+
+          function escapePipes(value) {
+            return String(value)
+              .replace(/\r?\n/g, ' ')
+              .replace(/\s+/g, ' ')
+              .replace(/\|/g, '\\|')
+              .trim();
+          }
+
+          const KEY_SEPARATOR = '\x00';
+
+          function summarizeReport(report) {
+            const groupStats = new Map();
+            const storyRows = [];
+
+            let totalStories = report.length;
+            let storiesWithViolations = 0;
+            let totalViolations = 0;
+            let apcaViolations = 0;
+
+            for (const story of report) {
+              const title = story?.title ?? 'Unknown';
+              const name = story?.name ?? story?.storyId ?? 'Unknown';
+              const violations = story?.results?.violations ?? [];
+              const violationCount = violations.length;
+              const apcaCount = violations.filter(isApcaViolation).length;
+
+              totalViolations += violationCount;
+              apcaViolations += apcaCount;
+              if (violationCount > 0) {
+                storiesWithViolations += 1;
+              }
+
+              const groupName = String(title).split('/')[0]?.trim() || 'Other';
+              const group = groupStats.get(groupName) ?? {
+                stories: 0,
+                storiesWithViolations: 0,
+                violations: 0,
+                apca: 0,
+              };
+              group.stories += 1;
+              group.violations += violationCount;
+              group.apca += apcaCount;
+              if (violationCount > 0) {
+                group.storiesWithViolations += 1;
+              }
+              groupStats.set(groupName, group);
+
+              storyRows.push({
+                story: `${title} / ${name}`,
+                violations: violationCount,
+                apca: apcaCount,
+              });
+            }
+
+            return {
+              totalStories,
+              storiesWithViolations,
+              totalViolations,
+              apcaViolations,
+              groupStats,
+              storyRows,
+            };
+          }
+
+          function collectViolations(report) {
+            const entries = [];
+
+            for (const story of report) {
+              const title = story?.title ?? 'Unknown';
+              const name = story?.name ?? story?.storyId ?? 'Unknown';
+              const storyKey = `${title} / ${name}`;
+              const group = String(title).split('/')[0]?.trim() || 'Other';
+              const violations = story?.results?.violations ?? [];
+
+              for (const violation of violations) {
+                const id = violation?.id ?? 'unknown';
+                const impact = violation?.impact ?? 'unknown';
+                const apca = isApcaViolation(violation);
+                const key = `${storyKey}${KEY_SEPARATOR}${id}`;
+                entries.push({ key, story: storyKey, group, id, impact, apca });
+              }
+            }
+
+            return entries;
+          }
+
+          function buildFullSummaryLines(summary, notice) {
+            const lines = [];
+            lines.push('# Storybook A11y Report');
+            lines.push('');
+            if (notice) {
+              lines.push(`> ${notice}`);
+              lines.push('');
+            }
+            lines.push(`- Total stories: ${summary.totalStories}`);
+            lines.push(`- Stories with violations: ${summary.storiesWithViolations}`);
+            lines.push(`- Total violations: ${summary.totalViolations}`);
+            lines.push(`- APCA violations: ${summary.apcaViolations}`);
+            lines.push('');
+            lines.push('## By group');
+            lines.push('');
+            lines.push('| Group | Stories | Stories w/ violations | Violations | APCA |');
+            lines.push('| --- | --- | --- | --- | --- |');
+
+            const sortedGroups = Array.from(summary.groupStats.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+            for (const [groupName, stats] of sortedGroups) {
+              lines.push(
+                `| ${escapePipes(groupName)} | ${stats.stories} | ${stats.storiesWithViolations} | ${stats.violations} | ${stats.apca} |`,
+              );
+            }
+
+            const violatingRows = summary.storyRows
+              .filter((row) => row.violations > 0)
+              .sort((a, b) => {
+                if (b.violations !== a.violations) return b.violations - a.violations;
+                if (b.apca !== a.apca) return b.apca - a.apca;
+                return a.story.localeCompare(b.story);
+              });
+
+            lines.push('');
+
+            if (violatingRows.length === 0) {
+              lines.push('No violations found.');
+            } else {
+              lines.push('<details>');
+              lines.push('<summary>Stories with violations</summary>');
+              lines.push('');
+              lines.push('| Story | Violations | APCA |');
+              lines.push('| --- | --- | --- |');
+              for (const row of violatingRows) {
+                lines.push(`| ${escapePipes(row.story)} | ${row.violations} | ${row.apca} |`);
+              }
+              lines.push('');
+              lines.push('</details>');
+            }
+
+            return lines;
+          }
+
+          function buildDeltaLines(currentReport, baselineReport, label) {
+            const currentEntries = collectViolations(currentReport);
+            const baselineEntries = collectViolations(baselineReport);
+
+            const baselineMap = new Map(baselineEntries.map((entry) => [entry.key, entry]));
+            const currentMap = new Map(currentEntries.map((entry) => [entry.key, entry]));
+
+            const newEntries = currentEntries.filter((entry) => !baselineMap.has(entry.key));
+            const resolvedEntries = baselineEntries.filter((entry) => !currentMap.has(entry.key));
+
+            const newApca = newEntries.filter((entry) => entry.apca).length;
+            const resolvedApca = resolvedEntries.filter((entry) => entry.apca).length;
+
+            const groupStats = new Map();
+            const addGroupStats = (entry, type) => {
+              const group = groupStats.get(entry.group) ?? {
+                newCount: 0,
+                newApca: 0,
+                resolvedCount: 0,
+                resolvedApca: 0,
+              };
+              if (type === 'new') {
+                group.newCount += 1;
+                if (entry.apca) group.newApca += 1;
+              } else {
+                group.resolvedCount += 1;
+                if (entry.apca) group.resolvedApca += 1;
+              }
+              groupStats.set(entry.group, group);
+            };
+
+            for (const entry of newEntries) addGroupStats(entry, 'new');
+            for (const entry of resolvedEntries) addGroupStats(entry, 'resolved');
+
+            const buildStoryRows = (entries) => {
+              const map = new Map();
+              for (const entry of entries) {
+                const stats = map.get(entry.story) ?? { story: entry.story, violations: 0, apca: 0 };
+                stats.violations += 1;
+                if (entry.apca) stats.apca += 1;
+                map.set(entry.story, stats);
+              }
+              return Array.from(map.values()).sort((a, b) => {
+                if (b.violations !== a.violations) return b.violations - a.violations;
+                if (b.apca !== a.apca) return b.apca - a.apca;
+                return a.story.localeCompare(b.story);
+              });
+            };
+
+            const newStoryRows = buildStoryRows(newEntries);
+            const resolvedStoryRows = buildStoryRows(resolvedEntries);
+
+            const lines = [];
+            lines.push(`# Storybook A11y Report (Delta vs ${label})`);
+            lines.push('');
+            lines.push(`- New violations: ${newEntries.length} (APCA: ${newApca})`);
+            lines.push(`- Resolved violations: ${resolvedEntries.length} (APCA: ${resolvedApca})`);
+            lines.push(
+              `- Net change: ${newEntries.length - resolvedEntries.length} (APCA: ${newApca - resolvedApca})`,
+            );
+            lines.push('');
+
+            if (groupStats.size === 0) {
+              lines.push('No changes detected against baseline.');
+              return lines;
+            }
+
+            lines.push('## By group');
+            lines.push('');
+            lines.push('| Group | New | New APCA | Resolved | Resolved APCA |');
+            lines.push('| --- | --- | --- | --- | --- |');
+
+            const sortedGroups = Array.from(groupStats.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+            for (const [groupName, stats] of sortedGroups) {
+              lines.push(
+                `| ${escapePipes(groupName)} | ${stats.newCount} | ${stats.newApca} | ${stats.resolvedCount} | ${stats.resolvedApca} |`,
+              );
+            }
+
+            lines.push('');
+
+            if (newStoryRows.length > 0) {
+              lines.push('<details>');
+              lines.push(`<summary>New violations (${newEntries.length})</summary>`);
+              lines.push('');
+              lines.push('| Story | Violations | APCA |');
+              lines.push('| --- | --- | --- |');
+              for (const row of newStoryRows) {
+                lines.push(`| ${escapePipes(row.story)} | ${row.violations} | ${row.apca} |`);
+              }
+              lines.push('');
+              lines.push('</details>');
+              lines.push('');
+            }
+
+            if (resolvedStoryRows.length > 0) {
+              lines.push('<details>');
+              lines.push(`<summary>Resolved violations (${resolvedEntries.length})</summary>`);
+              lines.push('');
+              lines.push('| Story | Violations | APCA |');
+              lines.push('| --- | --- | --- |');
+              for (const row of resolvedStoryRows) {
+                lines.push(`| ${escapePipes(row.story)} | ${row.violations} | ${row.apca} |`);
+              }
+              lines.push('');
+              lines.push('</details>');
+            }
+
+            return lines;
+          }
+
+          const summary = summarizeReport(data);
+          if (baselineError) {
+            console.error(baselineError);
+          }
+          const notice = baselinePath && !baselineData ? 'Baseline report not available; showing full report.' : null;
+          const lines = baselineData
+            ? buildDeltaLines(data, baselineData, baselineLabel)
+            : buildFullSummaryLines(summary, notice);
+
+          fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+          fs.writeFileSync(outputPath, `${lines.join('\n')}\n`, 'utf8');
+          NODE
 
           mkdir -p "$REPORT_ROOT"
 
@@ -192,7 +646,6 @@ jobs:
           if [ "$FAIL_ON_VIOLATIONS" = "false" ]; then
             printf "> ⚠️ Non-blocking mode: violations will NOT fail CI (A11Y_REPORT_FAIL_ON_VIOLATIONS=false).\n\n" >> "$COMMENT_PATH"
           fi
-          printf "### Summary\n\n" >> "$COMMENT_PATH"
 
           FAILURES=0
 
@@ -233,32 +686,39 @@ jobs:
 
             summary_path="$REPORT_ROOT/$theme/summary.md"
             if [ -f "$REPORT_ROOT/$theme/report.json" ]; then
-              npx --yes @techsio/storybook-a11y-reporter \
-                --input "$REPORT_ROOT/$theme/report.json" \
-                --fail-on-violations false > "$summary_path"
+              baseline_path=""
+              if [ -n "$BASELINE_RUN_ID" ] && [ -n "$BASELINE_ARTIFACT_PREFIX" ]; then
+                baseline_dir="$REPORT_ROOT/baseline/$theme"
+                baseline_path="$baseline_dir/report.json"
+                if [ ! -f "$baseline_path" ]; then
+                  mkdir -p "$baseline_dir"
+                  gh run download "$BASELINE_RUN_ID" -n "${BASELINE_ARTIFACT_PREFIX}-${theme}" -D "$baseline_dir" >/dev/null 2>&1 || true
+                fi
+              fi
+
+              if [ -n "$baseline_path" ]; then
+                node "$SUMMARY_SCRIPT" \
+                  --input "$REPORT_ROOT/$theme/report.json" \
+                  --baseline "$baseline_path" \
+                  --baseline-label "$BASELINE_LABEL" \
+                  --output "$summary_path"
+              else
+                node "$SUMMARY_SCRIPT" \
+                  --input "$REPORT_ROOT/$theme/report.json" \
+                  --output "$summary_path"
+              fi
             else
               echo "No a11y report JSON found for $theme. Storybook test-runner likely failed before reporting." > "$summary_path"
             fi
 
-            total_stories=$(grep -m1 '^- Total stories:' "$summary_path" | cut -d: -f2- | xargs || true)
-            stories_with_violations=$(grep -m1 '^- Stories with violations:' "$summary_path" | cut -d: -f2- | xargs || true)
-            total_violations=$(grep -m1 '^- Total violations:' "$summary_path" | cut -d: -f2- | xargs || true)
-            apca_violations=$(grep -m1 '^- APCA violations:' "$summary_path" | cut -d: -f2- | xargs || true)
-
-            if [ -n "$total_stories" ]; then
-              printf -- "- **%s**: %s stories, %s with violations, %s total (%s APCA)\n" \
-                "$theme" "$total_stories" "$stories_with_violations" "$total_violations" "$apca_violations" >> "$COMMENT_PATH"
+            theme_title="${theme^}"
+            printf "### %s\n\n" "$theme_title" >> "$COMMENT_PATH"
+            if [ -f "$summary_path" ]; then
+              awk 'NR==1 && /^# /{next} {print}' "$summary_path" >> "$COMMENT_PATH"
             else
-              printf -- "- **%s**: report unavailable\n" "$theme" >> "$COMMENT_PATH"
+              echo "No a11y report summary found for $theme." >> "$COMMENT_PATH"
             fi
-
-            printf "\n<details>\n<summary>%s details</summary>\n\n" "$theme" >> "$COMMENT_PATH"
-            if [ -n "$total_stories" ]; then
-              awk 'BEGIN{table=0} /^\\| Story /{table=1} {if (table) print}' "$summary_path" >> "$COMMENT_PATH"
-            else
-              cat "$summary_path" >> "$COMMENT_PATH"
-            fi
-            printf "\n\n</details>\n\n" >> "$COMMENT_PATH"
+            printf "\n\n" >> "$COMMENT_PATH"
           done
 
           if [ "$FAIL_ON_VIOLATIONS" != "false" ] && [ "$FAILURES" -ne 0 ]; then
@@ -283,9 +743,19 @@ jobs:
           fail-on-error: false
           fail-on-empty: false
 
+      - name: Find existing PR comment
+        if: ${{ always() && inputs['post-pr-comment'] && github.event_name == 'pull_request' && env.REPORT_ROOT != '' }}
+        id: find_comment
+        uses: peter-evans/find-comment@v3
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-includes: "<!-- storybook-a11y-report -->"
+
       - name: Post PR comment
         if: ${{ always() && inputs['post-pr-comment'] && github.event_name == 'pull_request' && env.REPORT_ROOT != '' && hashFiles(format('{0}/comment.md', env.REPORT_ROOT)) != '' }}
         uses: peter-evans/create-or-update-comment@v4
         with:
           issue-number: ${{ github.event.pull_request.number }}
+          comment-id: ${{ steps.find_comment.outputs.comment-id }}
+          edit-mode: replace
           body-path: ${{ env.REPORT_ROOT }}/comment.md
