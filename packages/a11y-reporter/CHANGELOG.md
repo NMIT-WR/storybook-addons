@@ -1,3 +1,15 @@
+# [0.1.0](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.15...storybook-a11y-reporter-v0.1.0) (2026-01-14)
+
+
+### Bug Fixes
+
+* resolve non-text impact typing ([3877742](https://github.com/NMIT-WR/storybook-addons/commit/3877742df13673c4e3f9e031074b0efcde147fa1))
+
+
+### Features
+
+* **addon-a11y-apca:** check icon contrast ([6deaedc](https://github.com/NMIT-WR/storybook-addons/commit/6deaedc37357c415f48e44fa37c873caba3af606))
+
 ## [0.0.15](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.0.14...storybook-a11y-reporter-v0.0.15) (2026-01-12)
 
 
