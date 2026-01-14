@@ -25,6 +25,11 @@ export interface ApcaParameters {
   level?: ApcaConformanceLevel;
   /** Default use case to apply when scanning text. */
   useCase?: ApcaUseCase;
+  /**
+   * Additional CSS selectors to treat as icons for contrast checks.
+   * Useful for tokenized icon classes like `.token-icon-*`.
+   */
+  iconSelectors?: string[] | string;
 }
 
 export interface A11yParameters {

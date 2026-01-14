@@ -124,13 +124,34 @@ export const run = async (input: A11yParameters = DEFAULT_PARAMETERS, storyId: s
             ? [context.exclude]
             : [];
 
-        const apcaResult = await runAPCACheck(contextElement, input.apca, excludeSelectors);
+        const {
+          apcaResult,
+          nonTextResult,
+          apcaIncompleteResult,
+          nonTextIncompleteResult,
+        } = await runAPCACheck(contextElement, input.apca, excludeSelectors);
 
         // Merge APCA results with axe results
         if (apcaResult.nodes.length > 0) {
           result.violations.push(apcaResult);
         } else {
           result.passes.push(apcaResult);
+        }
+
+        if (nonTextResult) {
+          if (nonTextResult.nodes.length > 0) {
+            result.violations.push(nonTextResult);
+          } else {
+            result.passes.push(nonTextResult);
+          }
+        }
+
+        if (apcaIncompleteResult) {
+          result.incomplete.push(apcaIncompleteResult);
+        }
+
+        if (nonTextIncompleteResult) {
+          result.incomplete.push(nonTextIncompleteResult);
         }
 
         const resultWithLinks = withLinkPaths(result, storyId);

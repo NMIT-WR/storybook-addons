@@ -43,13 +43,11 @@
   },
   "dependencies": {
     "@storybook/global": "^5.0.0",
-    "culori": "^4.0.1",
     "apca-w3": "^0.1.9",
-    "axe-core": "^4.2.0"
+    "axe-core": "^4.2.0",
+    "culori": "^4.0.1"
   },
   "devDependencies": {
-    "@types/react": "^18.2.66",
-    "@types/react-dom": "^18.2.21",
     "@semantic-release/changelog": "^6.0.3",
     "@semantic-release/commit-analyzer": "^13.0.1",
     "@semantic-release/git": "^10.0.1",
@@ -57,9 +55,14 @@
     "@semantic-release/npm": "^13.1.2",
     "@semantic-release/release-notes-generator": "^14.1.0",
     "@storybook/icons": "^2.0.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.1",
+    "@types/react": "^19.2.8",
+    "@types/react-dom": "^19.2.3",
+    "happy-dom": "^20.1.0",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
     "rsbuild-plugin-publint": "^0.3.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "semantic-release": "^25.0.2",
     "storybook": "^10.0.0",
     "vitest-axe": "^0.1.0"

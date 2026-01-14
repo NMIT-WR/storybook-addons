@@ -76,6 +76,7 @@ const violations = [
 
 describe('afterEach', () => {
   beforeEach(() => {
+    mockedRun.mockReset();
     vi.mocked(getIsVitestRunning).mockReturnValue(false);
     vi.mocked(getIsVitestStandaloneRun).mockReturnValue(true);
   });

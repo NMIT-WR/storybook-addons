@@ -26,6 +26,7 @@ export default {
       apca: {
         level: 'silver',
         useCase: 'body',
+        iconSelectors: ['[class^="token-icon-"]', '[class*=" token-icon-"]'],
       },
       test: 'error',
     },
@@ -36,5 +37,6 @@ export default {
 ## APCA parameters
 - `level`: `bronze | silver | gold`
 - `useCase`: `body | fluent | sub-fluent | non-fluent`
+- `iconSelectors`: CSS selectors to include additional icon elements (e.g. `.token-icon-error`, `[class^="token-icon-"]`)
 
 You can override the use case per element using `data-apca-usecase`.

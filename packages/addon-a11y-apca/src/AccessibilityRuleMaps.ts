@@ -331,6 +331,13 @@ const axeRuleMapping_wcag_2_1_a_aa: AxeRuleMap = {
     axeSummary: 'Ensure the autocomplete attribute is correct and suitable for the form field',
     friendlySummary: "Use valid autocomplete values that match the form field's purpose.",
   },
+  'non-text-contrast': {
+    title: 'Non-text contrast',
+    axeSummary:
+      'Ensure icons and other non-text UI components meet minimum contrast requirements',
+    friendlySummary:
+      'Icons and non-text UI elements should have at least 3:1 contrast against adjacent colors.',
+  },
   'avoid-inline-spacing': {
     title: 'Forced inline spacing',
     axeSummary: 'Ensure that text spacing set via inline styles can be adjusted with custom CSS',
