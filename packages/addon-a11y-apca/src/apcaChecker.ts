@@ -1,6 +1,6 @@
 import { global } from '@storybook/global';
 import { converter, parse as parseCssColor } from 'culori';
-import type { Result, NodeResult } from 'axe-core';
+import type { ImpactValue, Result, NodeResult } from 'axe-core';
 
 const { document } = global;
 
@@ -16,6 +16,7 @@ const toRgb = converter('rgb');
 
 type ApcaConformanceLevel = 'bronze' | 'silver' | 'gold';
 type ApcaUseCase = 'body' | 'fluent' | 'sub-fluent' | 'non-fluent';
+type ImpactLevel = Exclude<ImpactValue, null>;
 
 interface ApcaOptions {
   level?: ApcaConformanceLevel;
@@ -465,7 +466,7 @@ function extractPaintValuesFromSvgElement(
   const targets = shapes.length > 0 ? shapes : [svg];
 
   targets.forEach((shape) => {
-    ['fill', 'stroke'].forEach((property) => {
+    (['fill', 'stroke'] as const).forEach((property) => {
       let value = shape.getAttribute(property);
       if (!value) {
         value = extractPaintFromStyle(shape.getAttribute('style'), property);
@@ -485,6 +486,13 @@ function extractPaintValuesFromSvgElement(
   });
 
   return { colors, unresolved };
+}
+
+function getNonTextImpact(contrastRatio: number): ImpactLevel {
+  if (contrastRatio < 1.5) return 'critical';
+  if (contrastRatio < 2) return 'serious';
+  if (contrastRatio < 2.5) return 'moderate';
+  return 'minor';
 }
 
 function extractPaintValuesFromSvgMarkup(
@@ -979,11 +987,11 @@ export async function runAPCACheck(
   };
 
   const nonTextNodes: NodeResult[] = nonTextViolations.map((violation) => {
-    const impact = violation.contrastRatio < 1.5 ? 'critical' : violation.contrastRatio < 2 ? 'serious' : violation.contrastRatio < 2.5 ? 'moderate' : 'minor';
+    const impact = getNonTextImpact(violation.contrastRatio);
     const colorSuffix =
       violation.colorCount > 1 ? ` (min across ${violation.colorCount} icon colors)` : '';
     const message = `Non-text contrast ratio of ${violation.contrastRatio.toFixed(2)}:1 is below the minimum ${violation.minContrast}:1 required for icons${colorSuffix}.`;
-    const rules = [
+    const rules: NodeResult['any'] = [
       {
         id: 'non-text-contrast',
         impact,
@@ -1004,11 +1012,12 @@ export async function runAPCACheck(
   });
 
   const incompleteNodes = incompletes.map((entry) => {
+    const impact: ImpactLevel = 'minor';
     const message = entry.reason;
-    const rules = [
+    const rules: NodeResult['any'] = [
       {
         id: entry.rule,
-        impact: 'minor',
+        impact,
         message,
         data: null,
         relatedNodes: [],
@@ -1020,7 +1029,7 @@ export async function runAPCACheck(
       any: rules,
       all: [],
       none: [],
-      impact: 'minor',
+      impact,
       failureSummary: `Fix any of the following:\n  ${message}`,
     };
   });
