@@ -1,3 +1,5 @@
+## [0.1.3](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.1.2...storybook-a11y-reporter-v0.1.3) (2026-01-15)
+
 ## [0.1.2](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.1.1...storybook-a11y-reporter-v0.1.2) (2026-01-15)
 
 ## [0.1.1](https://github.com/NMIT-WR/storybook-addons/compare/storybook-a11y-reporter-v0.1.0...storybook-a11y-reporter-v0.1.1) (2026-01-15)
