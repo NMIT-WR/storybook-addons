@@ -1,6 +1,6 @@
 {
   "name": "@techsio/storybook-better-a11y",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Storybook Accessibility addon with APCA (WCAG 3) support",
   "keywords": [
     "storybook",
