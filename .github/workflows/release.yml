@@ -5,6 +5,11 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      allowStable:
+        description: Allow stable (1.x) releases
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -49,7 +54,8 @@ jobs:
             echo "release=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git diff --name-only "$LAST_TAG"..HEAD -- packages/a11y-reporter | grep -q .; then
+          CHANGES=$(git diff --name-only "$LAST_TAG"..HEAD -- packages/a11y-reporter | grep -v -E '^packages/a11y-reporter/(release\\.config\\.mjs|CHANGELOG\\.md)$' || true)
+          if echo "$CHANGES" | grep -q .; then
             echo "release=true" >> "$GITHUB_OUTPUT"
           else
             echo "release=false" >> "$GITHUB_OUTPUT"
@@ -58,6 +64,7 @@ jobs:
       - name: Release a11y reporter
         if: steps.reporter_changes.outputs.release == 'true'
         env:
+          ALLOW_STABLE_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.allowStable || 'false' }}
           GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -79,7 +86,8 @@ jobs:
             echo "release=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if git diff --name-only "$LAST_TAG"..HEAD -- packages/addon-a11y-apca | grep -q .; then
+          CHANGES=$(git diff --name-only "$LAST_TAG"..HEAD -- packages/addon-a11y-apca | grep -v -E '^packages/addon-a11y-apca/(release\\.config\\.mjs|CHANGELOG\\.md)$' || true)
+          if echo "$CHANGES" | grep -q .; then
             echo "release=true" >> "$GITHUB_OUTPUT"
           else
             echo "release=false" >> "$GITHUB_OUTPUT"
@@ -88,6 +96,7 @@ jobs:
       - name: Release addon a11y APCA
         if: steps.addon_changes.outputs.release == 'true'
         env:
+          ALLOW_STABLE_RELEASE: ${{ github.event_name == 'workflow_dispatch' && inputs.allowStable || 'false' }}
           GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}

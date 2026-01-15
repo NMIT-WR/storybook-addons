@@ -2,9 +2,10 @@ if (process.env.GITHUB_ACTIONS !== "true") {
   throw new Error("Releases are restricted to run inside GitHub Actions")
 }
 
+const allowStable = process.env.ALLOW_STABLE_RELEASE === "true"
 const releaseRules = [
-  { type: "major", release: "minor" },
-  { breaking: true, release: "patch" },
+  { type: "major", release: allowStable ? "major" : "minor" },
+  { breaking: true, release: allowStable ? "major" : "patch" },
   { type: "feat", release: "patch" },
   { type: "fix", release: "patch" },
   { type: "perf", release: "patch" },
