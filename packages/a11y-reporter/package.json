@@ -1,6 +1,6 @@
 {
   "name": "@techsio/storybook-a11y-reporter",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Storybook a11y reporter with APCA support for CI/CLI",
   "type": "module",
   "repository": {
