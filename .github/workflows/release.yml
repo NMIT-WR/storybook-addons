@@ -40,7 +40,23 @@ jobs:
       - name: Build packages
         run: pnpm build
 
+      - name: Detect reporter changes
+        id: reporter_changes
+        run: |
+          git fetch --tags --force
+          LAST_TAG=$(git tag -l "storybook-a11y-reporter-v*" --sort=-v:refname | head -n 1)
+          if [ -z "$LAST_TAG" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$LAST_TAG"..HEAD -- packages/a11y-reporter | grep -q .; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Release a11y reporter
+        if: steps.reporter_changes.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
@@ -49,11 +65,28 @@ jobs:
         run: pnpm -C packages/a11y-reporter semantic-release
 
       - name: Sync after reporter release
+        if: steps.reporter_changes.outputs.release == 'true'
         run: |
           git fetch origin main
           git reset --hard origin/main
 
+      - name: Detect addon changes
+        id: addon_changes
+        run: |
+          git fetch --tags --force
+          LAST_TAG=$(git tag -l "storybook-better-a11y-v*" --sort=-v:refname | head -n 1)
+          if [ -z "$LAST_TAG" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git diff --name-only "$LAST_TAG"..HEAD -- packages/addon-a11y-apca | grep -q .; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Release addon a11y APCA
+        if: steps.addon_changes.outputs.release == 'true'
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN || github.token }}

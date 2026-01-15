@@ -3,7 +3,7 @@ if (process.env.GITHUB_ACTIONS !== "true") {
 }
 
 const releaseRules = [
-  { type: "major", release: "major" },
+  { type: "major", release: "minor" },
   { breaking: true, release: "patch" },
   { type: "feat", release: "patch" },
   { type: "fix", release: "patch" },
